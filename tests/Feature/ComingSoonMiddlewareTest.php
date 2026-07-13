@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\RedirectIfComingSoon;
-use App\Models\User;
 use App\Services\SiteSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,16 +15,16 @@ class ComingSoonMiddlewareTest extends TestCase
   use RefreshDatabase;
 
   /**
-   * Redirige la boutique vers Coming Soon quand le mode est actif.
+   * Redirige la boutique vers l'accueil quand le mode est actif.
    */
-  public function testShopRoutesRedirectToComingSoonWhenEnabled(): void
+  public function testShopRoutesRedirectToHomeWhenComingSoonEnabled(): void
   {
     app(SiteSettingsService::class)->setMany([
       'coming_soon_enabled' => true,
     ]);
 
-    $this->get(route('home'))
-      ->assertRedirect(route('coming-soon'));
+    $this->get(route('shop.catalog'))
+      ->assertRedirect(route('home'));
   }
 
   /**
@@ -38,21 +37,21 @@ class ComingSoonMiddlewareTest extends TestCase
     ]);
 
     $this->withSession([RedirectIfComingSoon::BYPASS_SESSION_KEY => true])
-      ->get(route('home'))
+      ->get(route('shop.catalog'))
       ->assertOk();
   }
 
   /**
-   * Affiche la page Coming Soon publique.
+   * Affiche Coming Soon sur la page d'accueil.
    */
-  public function testComingSoonPageIsAccessibleWhenEnabled(): void
+  public function testHomePageShowsComingSoonWhenEnabled(): void
   {
     app(SiteSettingsService::class)->setMany([
       'coming_soon_enabled' => true,
       'coming_soon_title' => 'Ouverture imminente',
     ]);
 
-    $this->get(route('coming-soon'))
+    $this->get(route('home'))
       ->assertOk()
       ->assertSee('Ouverture imminente');
   }

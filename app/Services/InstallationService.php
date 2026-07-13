@@ -28,12 +28,22 @@ class InstallationService
    */
   public function isInstalled(): bool
   {
+    return $this->isCoreSetupComplete()
+      && $this->environment->hasAppKey()
+      && $this->environment->hasDatabaseConfig();
+  }
+
+  /**
+   * Indique si la base est configurée (BDD, migrations, admin).
+   *
+   * @return bool True si l'essentiel est en place
+   */
+  public function isCoreSetupComplete(): bool
+  {
     return $this->canConnectDatabase()
       && $this->isMigrationsTablePresent()
       && count($this->pendingMigrations()) === 0
-      && $this->hasAdminUser()
-      && $this->environment->hasAppKey()
-      && $this->environment->hasDatabaseConfig();
+      && $this->hasAdminUser();
   }
 
   /**
@@ -158,6 +168,7 @@ class InstallationService
       'pending_migrations' => $this->pendingMigrations(),
       'storage_linked' => $this->isStorageLinked(),
       'admin_user' => $this->hasAdminUser(),
+      'core_setup_complete' => $this->isCoreSetupComplete(),
       'installed' => $this->isInstalled(),
     ];
   }

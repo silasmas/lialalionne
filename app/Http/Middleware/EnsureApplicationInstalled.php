@@ -53,10 +53,6 @@ class EnsureApplicationInstalled
       return redirect()->route('install.setup');
     }
 
-    if ($request->routeIs('install.*') || $request->is('install', 'install/*')) {
-      return redirect()->route('filament.admin.pages.system-setup');
-    }
-
     return $next($request);
   }
 

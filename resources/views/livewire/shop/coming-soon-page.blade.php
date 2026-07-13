@@ -3,7 +3,7 @@
     <img
       src="{{ asset('assets/logo.jpeg') }}"
       alt="Lialalionne"
-      class="mx-auto mb-8 max-h-28 w-auto"
+      class="mx-auto mb-8 max-h-14 w-auto"
     >
 
     <p class="mb-2 text-sm uppercase tracking-[0.35em] text-brand-400">Luxury</p>
@@ -26,7 +26,7 @@
     </p>
 
     @if ($hasBypass)
-      <form wire:submit="unlock" class="mx-auto mt-10 max-w-sm text-left">
+      <form wire:submit.prevent="unlock" class="mx-auto mt-10 max-w-sm text-left">
         <label for="bypassCode" class="mb-2 block text-xs uppercase tracking-wide text-stone-400">
           Accès équipe (code secret)
         </label>

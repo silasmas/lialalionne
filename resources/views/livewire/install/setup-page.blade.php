@@ -1,13 +1,55 @@
-<div class="min-h-screen bg-stone-950 px-4 py-10 text-stone-100">
+<div class="min-h-screen bg-stone-950 px-4 py-10 text-stone-100" wire:ignore.self>
+  <div
+    wire:loading.flex
+    wire:target="saveEnvironment,generateAppKey,runMigrations,runSeeders,linkStorage,createSuperAdmin,saveComingSoon"
+    class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50"
+  >
+    <div class="rounded-lg bg-stone-900 px-6 py-4 text-sm text-brand-300">Traitement en cours…</div>
+  </div>
+
   <div class="mx-auto max-w-4xl">
     <div class="mb-8 text-center">
-      <img src="{{ asset('assets/logo.jpeg') }}" alt="Lialalionne" class="mx-auto mb-4 max-h-20">
+      <img src="{{ asset('assets/logo.jpeg') }}" alt="Lialalionne" class="install-logo mx-auto mb-3">
       <h1 class="text-2xl font-semibold text-brand-300">Installation Lialalionne</h1>
       <p class="mt-2 text-sm text-stone-400">Configurez la base, l'administrateur et le mode Coming Soon.</p>
     </div>
 
+    @if ($status['core_setup_complete'] ?? false)
+      <div class="mb-6 rounded-lg border border-green-800 bg-green-950/40 p-5">
+        <h2 class="mb-2 text-lg font-semibold text-green-300">Installation de base terminée</h2>
+        <p class="mb-4 text-sm text-green-200/80">
+          La base de données et l'administrateur sont prêts. Vous pouvez accéder à l'administration ou visiter le site.
+          @if ($comingSoonEnabled)
+            Le site affiche la page Coming Soon sur la page d'accueil.
+          @endif
+        </p>
+        <div class="flex flex-wrap gap-3">
+          <button
+            type="button"
+            wire:click="goToAdmin"
+            class="rounded bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+          >
+            Accéder à l'admin
+          </button>
+          <button
+            type="button"
+            wire:click="goToSite"
+            class="rounded border border-brand-600 px-5 py-2.5 text-sm font-semibold text-brand-300 hover:bg-brand-950"
+          >
+            Voir le site
+          </button>
+          <a
+            href="{{ route('filament.admin.pages.system-setup') }}"
+            class="rounded border border-stone-600 px-5 py-2.5 text-sm text-stone-300 hover:bg-stone-800"
+          >
+            Paramètres système (admin)
+          </a>
+        </div>
+      </div>
+    @endif
+
     @if ($flashMessage)
-      <div class="mb-6 rounded border px-4 py-3 text-sm {{ $flashType === 'success' ? 'border-green-700 bg-green-950 text-green-200' : 'border-red-700 bg-red-950 text-red-200' }}">
+      <div wire:transition class="mb-6 rounded border px-4 py-3 text-sm {{ $flashType === 'success' ? 'border-green-700 bg-green-950 text-green-200' : 'border-red-700 bg-red-950 text-red-200' }}">
         {{ $flashMessage }}
       </div>
     @endif
@@ -29,7 +71,7 @@
 
     <section class="mb-6 rounded-lg border border-stone-800 bg-stone-900 p-5">
       <h2 class="mb-4 text-lg font-semibold text-brand-300">1. Paramètres de base (.env)</h2>
-      <div class="grid gap-3 sm:grid-cols-2">
+      <form wire:submit.prevent="saveEnvironment" class="grid gap-3 sm:grid-cols-2">
         @foreach ($editableKeys as $key => $meta)
           <div>
             <label class="mb-1 block text-xs uppercase tracking-wide text-stone-400">{{ $meta['label'] }}</label>
@@ -48,11 +90,15 @@
             @endif
           </div>
         @endforeach
-      </div>
-      <div class="mt-4 flex flex-wrap gap-2">
-        <button type="button" wire:click="saveEnvironment" class="rounded bg-brand-600 px-4 py-2 text-sm font-semibold hover:bg-brand-700">Enregistrer .env</button>
-        <button type="button" wire:click="generateAppKey" class="rounded border border-stone-600 px-4 py-2 text-sm hover:bg-stone-800">Générer APP_KEY</button>
-      </div>
+        <div class="sm:col-span-2 mt-2 flex flex-wrap gap-2">
+          <button type="submit" wire:loading.attr="disabled" class="rounded bg-brand-600 px-4 py-2 text-sm font-semibold hover:bg-brand-700 disabled:opacity-60">
+            Enregistrer .env
+          </button>
+          <button type="button" wire:click.prevent="generateAppKey" wire:loading.attr="disabled" class="rounded border border-stone-600 px-4 py-2 text-sm hover:bg-stone-800 disabled:opacity-60">
+            Générer APP_KEY
+          </button>
+        </div>
+      </form>
     </section>
 
     <section class="mb-6 rounded-lg border border-stone-800 bg-stone-900 p-5">
@@ -66,26 +112,32 @@
         @endif
       </p>
       <div class="flex flex-wrap gap-2">
-        <button type="button" wire:click="runMigrations" class="rounded bg-brand-600 px-4 py-2 text-sm font-semibold hover:bg-brand-700">Exécuter les migrations</button>
-        <button type="button" wire:click="linkStorage" class="rounded border border-stone-600 px-4 py-2 text-sm hover:bg-stone-800">php artisan storage:link</button>
+        <button type="button" wire:click.prevent="runMigrations" wire:loading.attr="disabled" class="rounded bg-brand-600 px-4 py-2 text-sm font-semibold hover:bg-brand-700 disabled:opacity-60">
+          Exécuter les migrations
+        </button>
+        <button type="button" wire:click.prevent="linkStorage" wire:loading.attr="disabled" class="rounded border border-stone-600 px-4 py-2 text-sm hover:bg-stone-800 disabled:opacity-60">
+          php artisan storage:link
+        </button>
       </div>
     </section>
 
     <section class="mb-6 rounded-lg border border-stone-800 bg-stone-900 p-5">
       <h2 class="mb-4 text-lg font-semibold text-brand-300">3. Seeders</h2>
-      <div class="mb-3 max-w-md">
-        <select wire:model="selectedSeeder" class="w-full rounded border border-stone-700 bg-stone-950 px-3 py-2 text-sm">
+      <form wire:submit.prevent="runSeeders" class="max-w-md">
+        <select wire:model="selectedSeeder" class="mb-3 w-full rounded border border-stone-700 bg-stone-950 px-3 py-2 text-sm">
           @foreach ($seeders as $seeder)
             <option value="{{ $seeder }}">{{ class_basename(str_replace('\\', '/', $seeder)) }}</option>
           @endforeach
         </select>
-      </div>
-      <button type="button" wire:click="runSeeders" class="rounded bg-brand-600 px-4 py-2 text-sm font-semibold hover:bg-brand-700">Exécuter le seeder</button>
+        <button type="submit" wire:loading.attr="disabled" class="rounded bg-brand-600 px-4 py-2 text-sm font-semibold hover:bg-brand-700 disabled:opacity-60">
+          Exécuter le seeder
+        </button>
+      </form>
     </section>
 
     <section class="mb-6 rounded-lg border border-stone-800 bg-stone-900 p-5">
       <h2 class="mb-4 text-lg font-semibold text-brand-300">4. Super administrateur</h2>
-      <div class="grid gap-3 sm:grid-cols-2">
+      <form wire:submit.prevent="createSuperAdmin" class="grid gap-3 sm:grid-cols-2">
         <div>
           <label class="mb-1 block text-xs text-stone-400">Nom</label>
           <input type="text" wire:model="adminName" class="w-full rounded border border-stone-700 bg-stone-950 px-3 py-2 text-sm">
@@ -105,41 +157,43 @@
           <label class="mb-1 block text-xs text-stone-400">Confirmation</label>
           <input type="password" wire:model="adminPasswordConfirmation" class="w-full rounded border border-stone-700 bg-stone-950 px-3 py-2 text-sm">
         </div>
-      </div>
-      <button type="button" wire:click="createSuperAdmin" class="mt-4 rounded bg-brand-600 px-4 py-2 text-sm font-semibold hover:bg-brand-700">Créer le super admin</button>
+        <div class="sm:col-span-2">
+          <button type="submit" wire:loading.attr="disabled" class="rounded bg-brand-600 px-4 py-2 text-sm font-semibold hover:bg-brand-700 disabled:opacity-60">
+            Créer le super admin
+          </button>
+        </div>
+      </form>
     </section>
 
     <section class="mb-8 rounded-lg border border-stone-800 bg-stone-900 p-5">
       <h2 class="mb-4 text-lg font-semibold text-brand-300">5. Coming Soon</h2>
-      <label class="mb-4 flex items-center gap-2 text-sm">
-        <input type="checkbox" wire:model="comingSoonEnabled" class="rounded border-stone-600">
-        Activer la page « bientôt disponible » (bloque la boutique publique)
-      </label>
-      <div class="grid gap-3 sm:grid-cols-2">
-        <div class="sm:col-span-2">
-          <label class="mb-1 block text-xs text-stone-400">Titre</label>
-          <input type="text" wire:model="comingSoonTitle" class="w-full rounded border border-stone-700 bg-stone-950 px-3 py-2 text-sm">
+      <form wire:submit.prevent="saveComingSoon">
+        <label class="mb-4 flex items-center gap-2 text-sm">
+          <input type="checkbox" wire:model="comingSoonEnabled" class="rounded border-stone-600">
+          Activer la page « bientôt disponible » (l'accueil / affiche Coming Soon)
+        </label>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div class="sm:col-span-2">
+            <label class="mb-1 block text-xs text-stone-400">Titre</label>
+            <input type="text" wire:model="comingSoonTitle" class="w-full rounded border border-stone-700 bg-stone-950 px-3 py-2 text-sm">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="mb-1 block text-xs text-stone-400">Message</label>
+            <textarea wire:model="comingSoonMessage" rows="3" class="w-full rounded border border-stone-700 bg-stone-950 px-3 py-2 text-sm"></textarea>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs text-stone-400">Date de sortie</label>
+            <input type="date" wire:model="comingSoonLaunchAt" class="w-full rounded border border-stone-700 bg-stone-950 px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="mb-1 block text-xs text-stone-400">Code accès manuel</label>
+            <input type="text" wire:model="comingSoonBypassSecret" class="w-full rounded border border-stone-700 bg-stone-950 px-3 py-2 text-sm" placeholder="ex: lialalionne2026">
+          </div>
         </div>
-        <div class="sm:col-span-2">
-          <label class="mb-1 block text-xs text-stone-400">Message</label>
-          <textarea wire:model="comingSoonMessage" rows="3" class="w-full rounded border border-stone-700 bg-stone-950 px-3 py-2 text-sm"></textarea>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-stone-400">Date de sortie</label>
-          <input type="date" wire:model="comingSoonLaunchAt" class="w-full rounded border border-stone-700 bg-stone-950 px-3 py-2 text-sm">
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-stone-400">Code accès manuel</label>
-          <input type="text" wire:model="comingSoonBypassSecret" class="w-full rounded border border-stone-700 bg-stone-950 px-3 py-2 text-sm" placeholder="ex: lialalionne2026">
-        </div>
-      </div>
-      <button type="button" wire:click="saveComingSoon" class="mt-4 rounded border border-brand-600 px-4 py-2 text-sm text-brand-300 hover:bg-brand-950">Enregistrer Coming Soon</button>
+        <button type="submit" wire:loading.attr="disabled" class="mt-4 rounded border border-brand-600 px-4 py-2 text-sm text-brand-300 hover:bg-brand-950 disabled:opacity-60">
+          Enregistrer Coming Soon
+        </button>
+      </form>
     </section>
-
-    <div class="flex justify-end">
-      <button type="button" wire:click="finish" class="rounded bg-green-700 px-6 py-3 text-sm font-semibold hover:bg-green-600">
-        Terminer l'installation → Admin
-      </button>
-    </div>
   </div>
 </div>

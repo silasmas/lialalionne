@@ -14,6 +14,11 @@
       color: #f5f5f5;
       font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     }
+
+    .install-logo {
+      max-height: 48px;
+      width: auto;
+    }
   </style>
 </head>
 <body>

@@ -46,11 +46,11 @@ class RedirectIfComingSoon
       return $next($request);
     }
 
-    if ($request->routeIs('coming-soon')) {
+    if ($request->routeIs('home', 'coming-soon')) {
       return $next($request);
     }
 
-    return redirect()->route('coming-soon');
+    return redirect()->route('home');
   }
 
   /**

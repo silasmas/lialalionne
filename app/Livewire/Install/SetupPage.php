@@ -5,6 +5,8 @@ namespace App\Livewire\Install;
 use App\Services\EnvironmentFileService;
 use App\Services\InstallationService;
 use App\Services\SetupService;
+use App\Services\SiteSettingsService;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 
 /**
@@ -39,6 +41,8 @@ class SetupPage extends Component
 
   public string $flashType = 'success';
 
+  public bool $isActionRunning = false;
+
   /** @var array<string, mixed> */
   public array $status = [];
 
@@ -47,18 +51,40 @@ class SetupPage extends Component
    *
    * @param InstallationService $installation Service installation
    * @param EnvironmentFileService $environment Service .env
+   * @param SiteSettingsService $settings Service paramètres
    * @return void
    */
-  public function mount(InstallationService $installation, EnvironmentFileService $environment): void
-  {
-    if ($installation->isInstalled()) {
-      $this->redirect(route('filament.admin.pages.system-setup'), navigate: true);
-
-      return;
-    }
-
+  public function mount(
+    InstallationService $installation,
+    EnvironmentFileService $environment,
+    SiteSettingsService $settings
+  ): void {
     $this->envValues = $environment->readEditableValues();
+    $this->loadComingSoonSettings($settings);
     $this->refreshStatus($installation);
+  }
+
+  /**
+   * Charge les paramètres Coming Soon depuis la base si disponible.
+   *
+   * @param SiteSettingsService $settings Service paramètres
+   * @return void
+   */
+  private function loadComingSoonSettings(SiteSettingsService $settings): void
+  {
+    try {
+      if (!Schema::hasTable('settings')) {
+        return;
+      }
+
+      $this->comingSoonEnabled = $settings->isComingSoonEnabled();
+      $this->comingSoonTitle = $settings->comingSoonTitle();
+      $this->comingSoonMessage = $settings->comingSoonMessage();
+      $this->comingSoonLaunchAt = $settings->comingSoonLaunchAt();
+      $this->comingSoonBypassSecret = $settings->comingSoonBypassSecret() ?? '';
+    } catch (\Throwable) {
+      //
+    }
   }
 
   /**
@@ -81,9 +107,15 @@ class SetupPage extends Component
    */
   public function saveEnvironment(SetupService $setup, InstallationService $installation): void
   {
-    $result = $setup->saveEnvironment($this->envValues);
-    $this->notify($result['message'], $result['success'] ? 'success' : 'error');
-    $this->refreshStatus($installation);
+    $this->isActionRunning = true;
+
+    try {
+      $result = $setup->saveEnvironment($this->envValues);
+      $this->notify($result['message'], $result['success'] ? 'success' : 'error');
+      $this->refreshStatus($installation);
+    } finally {
+      $this->isActionRunning = false;
+    }
   }
 
   /**
@@ -95,9 +127,15 @@ class SetupPage extends Component
    */
   public function generateAppKey(SetupService $setup, InstallationService $installation): void
   {
-    $result = $setup->generateAppKey();
-    $this->notify($result['message'], $result['success'] ? 'success' : 'error');
-    $this->refreshStatus($installation);
+    $this->isActionRunning = true;
+
+    try {
+      $result = $setup->generateAppKey();
+      $this->notify($result['message'], $result['success'] ? 'success' : 'error');
+      $this->refreshStatus($installation);
+    } finally {
+      $this->isActionRunning = false;
+    }
   }
 
   /**
@@ -109,9 +147,15 @@ class SetupPage extends Component
    */
   public function runMigrations(SetupService $setup, InstallationService $installation): void
   {
-    $result = $setup->runMigrations();
-    $this->notify($result['message'], $result['success'] ? 'success' : 'error');
-    $this->refreshStatus($installation);
+    $this->isActionRunning = true;
+
+    try {
+      $result = $setup->runMigrations();
+      $this->notify($result['message'], $result['success'] ? 'success' : 'error');
+      $this->refreshStatus($installation);
+    } finally {
+      $this->isActionRunning = false;
+    }
   }
 
   /**
@@ -123,9 +167,15 @@ class SetupPage extends Component
    */
   public function runSeeders(SetupService $setup, InstallationService $installation): void
   {
-    $result = $setup->runSeeders($this->selectedSeeder);
-    $this->notify($result['message'], $result['success'] ? 'success' : 'error');
-    $this->refreshStatus($installation);
+    $this->isActionRunning = true;
+
+    try {
+      $result = $setup->runSeeders($this->selectedSeeder);
+      $this->notify($result['message'], $result['success'] ? 'success' : 'error');
+      $this->refreshStatus($installation);
+    } finally {
+      $this->isActionRunning = false;
+    }
   }
 
   /**
@@ -137,9 +187,15 @@ class SetupPage extends Component
    */
   public function linkStorage(SetupService $setup, InstallationService $installation): void
   {
-    $result = $setup->linkStorage();
-    $this->notify($result['message'], $result['success'] ? 'success' : 'error');
-    $this->refreshStatus($installation);
+    $this->isActionRunning = true;
+
+    try {
+      $result = $setup->linkStorage();
+      $this->notify($result['message'], $result['success'] ? 'success' : 'error');
+      $this->refreshStatus($installation);
+    } finally {
+      $this->isActionRunning = false;
+    }
   }
 
   /**
@@ -161,6 +217,8 @@ class SetupPage extends Component
       'adminPassword' => 'mot de passe',
     ]);
 
+    $this->isActionRunning = true;
+
     try {
       $result = $setup->createSuperAdmin(
         $this->adminName,
@@ -174,9 +232,10 @@ class SetupPage extends Component
           $this->addError($field, $message);
         }
       }
+    } finally {
+      $this->isActionRunning = false;
+      $this->refreshStatus($installation);
     }
-
-    $this->refreshStatus($installation);
   }
 
   /**
@@ -188,35 +247,42 @@ class SetupPage extends Component
    */
   public function saveComingSoon(SetupService $setup, InstallationService $installation): void
   {
-    $result = $setup->saveComingSoonSettings([
-      'coming_soon_enabled' => $this->comingSoonEnabled,
-      'coming_soon_title' => $this->comingSoonTitle,
-      'coming_soon_message' => $this->comingSoonMessage,
-      'coming_soon_launch_at' => $this->comingSoonLaunchAt,
-      'coming_soon_bypass_secret' => $this->comingSoonBypassSecret ?: null,
-    ]);
+    $this->isActionRunning = true;
 
-    $this->notify($result['message'], $result['success'] ? 'success' : 'error');
-    $this->refreshStatus($installation);
+    try {
+      $result = $setup->saveComingSoonSettings([
+        'coming_soon_enabled' => $this->comingSoonEnabled,
+        'coming_soon_title' => $this->comingSoonTitle,
+        'coming_soon_message' => $this->comingSoonMessage,
+        'coming_soon_launch_at' => $this->comingSoonLaunchAt,
+        'coming_soon_bypass_secret' => $this->comingSoonBypassSecret ?: null,
+      ]);
+
+      $this->notify($result['message'], $result['success'] ? 'success' : 'error');
+      $this->refreshStatus($installation);
+    } finally {
+      $this->isActionRunning = false;
+    }
   }
 
   /**
-   * Finalise l'installation et redirige vers l'admin.
+   * Ouvre l'administration Filament dans un nouvel onglet.
    *
-   * @param InstallationService $installation Service installation
    * @return void
    */
-  public function finish(InstallationService $installation): void
+  public function goToAdmin(): void
   {
-    $this->refreshStatus($installation);
+    $this->redirect(route('filament.admin.auth.login'), navigate: false);
+  }
 
-    if (!$installation->isInstalled()) {
-      $this->notify('Terminez d\'abord les étapes obligatoires (migrations + super admin + APP_KEY).', 'error');
-
-      return;
-    }
-
-    $this->redirect(route('filament.admin.auth.login'), navigate: true);
+  /**
+   * Ouvre la boutique (Coming Soon sur / si activé).
+   *
+   * @return void
+   */
+  public function goToSite(): void
+  {
+    $this->redirect(route('home'), navigate: false);
   }
 
   /**

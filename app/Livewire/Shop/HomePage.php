@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Shop;
 
+use App\Http\Middleware\RedirectIfComingSoon;
 use App\Livewire\Shop\Concerns\InteractsWithProductCard;
 use App\Models\Product;
 use App\Services\FavoriteService;
+use App\Services\SiteSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -56,8 +58,15 @@ class HomePage extends Component
    * @param FavoriteService $favoriteService Service favoris
    * @return \Illuminate\View\View Vue Livewire
    */
-  public function render(FavoriteService $favoriteService)
+  public function render(FavoriteService $favoriteService, SiteSettingsService $settings)
   {
+    if ($settings->isComingSoonEnabled() && !session(RedirectIfComingSoon::BYPASS_SESSION_KEY)) {
+      return view('livewire.shop.home-coming-soon-wrapper')
+        ->layout('layouts.minimal', [
+          'title' => $settings->comingSoonTitle(),
+        ]);
+    }
+
     $this->loadFavoriteIds($favoriteService);
 
     $featuredProducts = $this->productsOrFallback(
