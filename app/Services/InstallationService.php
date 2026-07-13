@@ -63,16 +63,28 @@ class InstallationService
    */
   public function canConnectDatabase(): bool
   {
+    return $this->databaseConnectionError() === null;
+  }
+
+  /**
+   * Retourne le message d'erreur connexion BDD ou null si OK.
+   *
+   * @return string|null Message d'erreur
+   */
+  public function databaseConnectionError(): ?string
+  {
     if (!$this->environment->hasDatabaseConfig()) {
-      return false;
+      return 'DB_DATABASE ou DB_CONNECTION manquant dans le .env.';
     }
 
     try {
+      DB::purge();
+      DB::reconnect();
       DB::connection()->getPdo();
 
-      return true;
-    } catch (Throwable) {
-      return false;
+      return null;
+    } catch (Throwable $exception) {
+      return $exception->getMessage();
     }
   }
 

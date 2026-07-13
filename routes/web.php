@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\FlexPayWebhookController;
+use App\Http\Controllers\InstallController;
 use App\Http\Controllers\LogoutController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Livewire\Account\DashboardPage;
@@ -9,7 +10,6 @@ use App\Livewire\Account\LoginPage;
 use App\Livewire\Account\OrderListPage;
 use App\Livewire\Account\OrderShowPage;
 use App\Livewire\Account\RegisterPage;
-use App\Livewire\Install\SetupPage;
 use App\Livewire\Shop\AboutPage;
 use App\Livewire\Shop\CartPage;
 use App\Livewire\Shop\ComingSoonPage;
@@ -23,7 +23,14 @@ use App\Livewire\Shop\ProductCatalog;
 use App\Livewire\Shop\ProductShow;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/install', SetupPage::class)->name('install.setup');
+Route::get('/install', [InstallController::class, 'show'])->name('install.setup');
+Route::post('/install/environment', [InstallController::class, 'saveEnvironment'])->name('install.environment');
+Route::post('/install/app-key', [InstallController::class, 'generateAppKey'])->name('install.app-key');
+Route::post('/install/migrate', [InstallController::class, 'runMigrations'])->name('install.migrate');
+Route::post('/install/storage-link', [InstallController::class, 'linkStorage'])->name('install.storage-link');
+Route::post('/install/seeders', [InstallController::class, 'runSeeders'])->name('install.seeders');
+Route::post('/install/admin', [InstallController::class, 'createSuperAdmin'])->name('install.admin');
+Route::post('/install/coming-soon', [InstallController::class, 'saveComingSoon'])->name('install.coming-soon');
 Route::get('/coming-soon', ComingSoonPage::class)->name('coming-soon');
 
 Route::get('/', HomePage::class)->name('home');

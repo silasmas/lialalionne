@@ -37,6 +37,12 @@ class SetupService
   public function saveEnvironment(array $values): array
   {
     try {
+      foreach (['DB_PASSWORD', 'MAIL_PASSWORD'] as $passwordKey) {
+        if (array_key_exists($passwordKey, $values) && ($values[$passwordKey] === null || $values[$passwordKey] === '')) {
+          unset($values[$passwordKey]);
+        }
+      }
+
       $this->environment->update($values);
       $this->refreshRuntimeConfig();
 
@@ -61,6 +67,7 @@ class SetupService
   {
     try {
       $key = $this->environment->ensureAppKey();
+      $this->refreshRuntimeConfig();
 
       return [
         'success' => true,
@@ -81,10 +88,14 @@ class SetupService
    */
   public function runMigrations(): array
   {
-    if (!$this->installation->canConnectDatabase()) {
+    $this->refreshRuntimeConfig();
+
+    $connectionError = $this->installation->databaseConnectionError();
+
+    if ($connectionError !== null) {
       return [
         'success' => false,
-        'message' => 'Connexion base de données impossible. Vérifiez le .env.',
+        'message' => 'Connexion base de données impossible : ' . $connectionError,
       ];
     }
 
