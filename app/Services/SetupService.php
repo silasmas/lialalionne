@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -37,10 +38,11 @@ class SetupService
   {
     try {
       $this->environment->update($values);
+      $this->refreshRuntimeConfig();
 
       return [
         'success' => true,
-        'message' => 'Fichier .env mis à jour.',
+        'message' => 'Fichier .env mis à jour. Configuration rechargée.',
       ];
     } catch (Throwable $exception) {
       return [
@@ -88,6 +90,7 @@ class SetupService
 
     try {
       Artisan::call('migrate', ['--force' => true]);
+      $this->refreshRuntimeConfig();
       $output = trim(Artisan::output());
 
       return [
@@ -244,6 +247,7 @@ class SetupService
       ];
 
       $this->settings->setMany($payload);
+      $this->refreshRuntimeConfig();
 
       return [
         'success' => true,
@@ -293,5 +297,23 @@ class SetupService
     } catch (Throwable) {
       return false;
     }
+  }
+
+  /**
+   * Vide le cache de config et reconnecte la BDD après modification .env.
+   *
+   * @return void
+   */
+  private function refreshRuntimeConfig(): void
+  {
+    try {
+      Artisan::call('config:clear');
+      Artisan::call('cache:clear');
+    } catch (Throwable) {
+      //
+    }
+
+    DB::purge();
+    DB::reconnect();
   }
 }

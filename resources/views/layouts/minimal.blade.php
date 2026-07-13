@@ -3,23 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{{ $title ?? 'Lialalionne' }}</title>
-  @vite(['resources/css/app.css', 'resources/js/app.js'])
-  @livewireStyles
-  <style>
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: #0a0a0a;
-      color: #f5f5f5;
-      font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
-    }
 
-    .install-logo {
-      max-height: 48px;
-      width: auto;
-    }
-  </style>
+  @if (file_exists(public_path('build/manifest.json')))
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+  @else
+    <link rel="stylesheet" href="{{ asset('css/minimal-pages.css') }}">
+  @endif
+
+  @livewireStyles
 </head>
 <body>
   {{ $slot }}

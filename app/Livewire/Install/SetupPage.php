@@ -62,6 +62,21 @@ class SetupPage extends Component
     $this->envValues = $environment->readEditableValues();
     $this->loadComingSoonSettings($settings);
     $this->refreshStatus($installation);
+    $this->pullSessionFlash();
+  }
+
+  /**
+   * Restaure un message flash de secours (si Livewire indisponible).
+   *
+   * @return void
+   */
+  private function pullSessionFlash(): void
+  {
+    if (session()->has('install_flash_message')) {
+      $this->flashMessage = (string) session('install_flash_message');
+      $this->flashType = (string) session('install_flash_type', 'success');
+      session()->forget(['install_flash_message', 'install_flash_type']);
+    }
   }
 
   /**
@@ -313,5 +328,10 @@ class SetupPage extends Component
   {
     $this->flashMessage = $message;
     $this->flashType = $type;
+
+    session([
+      'install_flash_message' => $message,
+      'install_flash_type' => $type,
+    ]);
   }
 }

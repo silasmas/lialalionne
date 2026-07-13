@@ -1,8 +1,8 @@
-<div class="min-h-screen bg-stone-950 px-4 py-10 text-stone-100" wire:ignore.self>
+<div class="min-h-screen bg-stone-950 px-4 py-10 text-stone-100">
   <div
-    wire:loading.flex
+    wire:loading.class="is-active"
     wire:target="saveEnvironment,generateAppKey,runMigrations,runSeeders,linkStorage,createSuperAdmin,saveComingSoon"
-    class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50"
+    class="install-loading"
   >
     <div class="rounded-lg bg-stone-900 px-6 py-4 text-sm text-brand-300">Traitement en cours…</div>
   </div>
@@ -49,12 +49,12 @@
     @endif
 
     @if ($flashMessage)
-      <div wire:transition class="mb-6 rounded border px-4 py-3 text-sm {{ $flashType === 'success' ? 'border-green-700 bg-green-950 text-green-200' : 'border-red-700 bg-red-950 text-red-200' }}">
+      <div wire:key="flash-{{ md5($flashMessage . $flashType) }}" class="install-alert install-alert--{{ $flashType === 'success' ? 'success' : 'error' }}" role="alert">
         {{ $flashMessage }}
       </div>
     @endif
 
-    <div class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="install-status-grid">
       @foreach ([
         ['label' => '.env', 'ok' => $status['env_file'] ?? false],
         ['label' => 'APP_KEY', 'ok' => $status['app_key'] ?? false],
@@ -63,7 +63,7 @@
         ['label' => 'Storage', 'ok' => $status['storage_linked'] ?? false],
         ['label' => 'Admin', 'ok' => $status['admin_user'] ?? false],
       ] as $item)
-        <div class="rounded border px-3 py-2 text-sm {{ $item['ok'] ? 'border-green-700 text-green-300' : 'border-stone-700 text-stone-400' }}">
+        <div class="rounded border px-3 py-2 text-sm {{ $item['ok'] ? 'status-ok' : 'status-pending' }}">
           {{ $item['label'] }} : {{ $item['ok'] ? 'OK' : 'À faire' }}
         </div>
       @endforeach

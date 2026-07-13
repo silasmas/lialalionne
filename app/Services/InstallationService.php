@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
@@ -101,20 +101,23 @@ class InstallationService
    */
   public function pendingMigrations(): array
   {
-    if (!$this->canConnectDatabase()) {
+    if (!$this->canConnectDatabase() || !$this->isMigrationsTablePresent()) {
       return $this->migrationFiles();
     }
 
     try {
-      Artisan::call('migrate:status', ['--no-ansi' => true]);
-      $output = Artisan::output();
+      /** @var Migrator $migrator */
+      $migrator = app('migrator');
+      $paths = [database_path('migrations')];
+      $files = $migrator->getMigrationFiles($paths);
+      $ran = $migrator->getRepository()->getRan();
       $pending = [];
 
-      foreach (explode(PHP_EOL, $output) as $line) {
-        if (str_contains($line, 'Pending')) {
-          if (preg_match('/\s(\S+\.php)\s+Pending/', $line, $matches) === 1) {
-            $pending[] = $matches[1];
-          }
+      foreach (array_keys($files) as $migrationName) {
+        if (!in_array($migrationName, $ran, true)) {
+          $pending[] = str_ends_with($migrationName, '.php')
+            ? $migrationName
+            : $migrationName . '.php';
         }
       }
 

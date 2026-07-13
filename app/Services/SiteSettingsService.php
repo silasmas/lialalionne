@@ -6,6 +6,7 @@ use App\Enums\AuthMode;
 use App\Enums\PaymentMethod;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Service de lecture/écriture des paramètres boutique (auth, paiements).
@@ -45,6 +46,14 @@ class SiteSettingsService
    */
   public function all(): array
   {
+    try {
+      if (!Schema::hasTable('settings')) {
+        return self::DEFAULTS;
+      }
+    } catch (\Throwable) {
+      return self::DEFAULTS;
+    }
+
     return Cache::remember(self::CACHE_KEY, 3600, function (): array {
       $stored = Setting::query()
         ->get()

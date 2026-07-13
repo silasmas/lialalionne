@@ -60,11 +60,15 @@ class HomePage extends Component
    */
   public function render(FavoriteService $favoriteService, SiteSettingsService $settings)
   {
-    if ($settings->isComingSoonEnabled() && !session(RedirectIfComingSoon::BYPASS_SESSION_KEY)) {
-      return view('livewire.shop.home-coming-soon-wrapper')
-        ->layout('layouts.minimal', [
-          'title' => $settings->comingSoonTitle(),
-        ]);
+    try {
+      if ($settings->isComingSoonEnabled() && !session(RedirectIfComingSoon::BYPASS_SESSION_KEY)) {
+        return view('livewire.shop.home-coming-soon-wrapper')
+          ->layout('layouts.minimal', [
+            'title' => $settings->comingSoonTitle(),
+          ]);
+      }
+    } catch (\Throwable) {
+      //
     }
 
     $this->loadFavoriteIds($favoriteService);

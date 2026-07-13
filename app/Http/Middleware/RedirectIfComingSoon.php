@@ -38,7 +38,11 @@ class RedirectIfComingSoon
       return $next($request);
     }
 
-    if (!$this->settings->isComingSoonEnabled()) {
+    try {
+      if (!$this->settings->isComingSoonEnabled()) {
+        return $next($request);
+      }
+    } catch (\Throwable) {
       return $next($request);
     }
 
