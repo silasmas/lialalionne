@@ -1,0 +1,148 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-brand-50: #fef9e7;
+    --color-brand-100: #fef0c3;
+    --color-brand-200: #fde08d;
+    --color-brand-300: #f5d061;
+    --color-brand-400: #e8c547;
+    --color-brand-500: #d4af37;
+    --color-brand-600: #c5a059;
+    --color-brand-700: #a67c00;
+    --color-brand-800: #8b6914;
+    --color-brand-900: #734f08;
+}
+
+.lw-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.lw-action--loading {
+  pointer-events: none;
+  cursor: wait;
+  opacity: 0.85;
+}
+
+.lw-action__loader {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.lw-spinner {
+  display: inline-block;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: lw-spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+.lw-spinner--sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+.lw-spinner--md {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+@keyframes lw-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cookie-consent {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10050;
+  padding: 16px;
+  transform: translateY(110%);
+  transition: transform 0.35s ease;
+  pointer-events: none;
+}
+
+.cookie-consent.is-visible {
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.cookie-consent__inner {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 18px 20px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cookie-consent__content {
+  flex: 1 1 320px;
+}
+
+.cookie-consent__title {
+  margin: 0 0 6px;
+  font-weight: 600;
+  color: #222;
+}
+
+.cookie-consent__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #555;
+}
+
+.cookie-consent__link {
+  color: #c5a059;
+  text-decoration: underline;
+}
+
+.cookie-consent__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cookie-consent__btn {
+  border: 0;
+  border-radius: 4px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cookie-consent__btn--primary {
+  background: #c5a059;
+  color: #fff;
+}
+
+.cookie-consent__btn--secondary {
+  background: #fff;
+  color: #333;
+  border: 1px solid #ddd;
+}
