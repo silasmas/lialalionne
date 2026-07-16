@@ -720,6 +720,105 @@
       position: relative;
     }
 
+    /* Modale d'accueil — produits vedettes */
+    .featured-welcome-popup .modal-content {
+      border: 0;
+      border-radius: 0;
+      overflow: hidden;
+    }
+
+    .featured-welcome-media {
+      position: relative;
+      min-height: 320px;
+      height: 100%;
+      background: #000000;
+      overflow: hidden;
+    }
+
+    .featured-welcome-image {
+      width: 100%;
+      height: 100%;
+      min-height: 320px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .featured-welcome-content {
+      text-align: left;
+      padding: 40px 36px;
+    }
+
+    .featured-welcome-eyebrow {
+      color: #C5A059;
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .featured-welcome-category {
+      color: #687188;
+      font-size: 13px;
+      margin: 0;
+    }
+
+    .featured-welcome-price .price {
+      font-size: 1.35rem;
+      color: #C5A059;
+      font-weight: 700;
+      margin-right: 8px;
+    }
+
+    .featured-welcome-price del {
+      color: #919191;
+      font-size: 0.95rem;
+    }
+
+    .featured-welcome-carousel .carousel-indicators {
+      margin-bottom: 0.75rem;
+    }
+
+    .featured-welcome-carousel .carousel-indicators [data-bs-target] {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #C5A059;
+      opacity: 0.35;
+    }
+
+    .featured-welcome-carousel .carousel-indicators .active {
+      opacity: 1;
+      background-color: #000000;
+    }
+
+    .featured-welcome-carousel .carousel-control-prev,
+    .featured-welcome-carousel .carousel-control-next {
+      width: 8%;
+      opacity: 0.85;
+    }
+
+    .featured-welcome-carousel .carousel-control-prev-icon,
+    .featured-welcome-carousel .carousel-control-next-icon {
+      filter: none;
+      background-color: #000000;
+      border-radius: 50%;
+      background-size: 50% 50%;
+      width: 2rem;
+      height: 2rem;
+    }
+
+    @media (max-width: 575px) {
+      .featured-welcome-content {
+        padding: 28px 20px 36px;
+        text-align: center;
+      }
+
+      .featured-welcome-media,
+      .featured-welcome-image {
+        min-height: 220px;
+      }
+    }
+
     @media (max-width: 575px) {
       .cookie-consent__actions {
         width: 100%;

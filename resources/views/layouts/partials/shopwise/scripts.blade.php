@@ -132,12 +132,50 @@
     document.addEventListener('DOMContentLoaded', function () {
       setTimeout(initShopwiseCarousels, 500);
       setTimeout(initShopwiseProductGallery, 700);
+      setTimeout(initFeaturedWelcomePopup, 1200);
     });
 
     document.addEventListener('livewire:navigated', function () {
       setTimeout(initShopwiseCarousels, 300);
       setTimeout(initShopwiseProductGallery, 500);
+      setTimeout(initFeaturedWelcomePopup, 800);
     });
+
+    /**
+     * Affiche la modale des produits vedettes (sauf si refusée via localStorage).
+     *
+     * @return void
+     */
+    function initFeaturedWelcomePopup() {
+      var modalEl = document.getElementById('featured-welcome-popup');
+
+      if (!modalEl || !window.bootstrap || !window.bootstrap.Modal) {
+        return;
+      }
+
+      if (window.localStorage.getItem('lialalionne_hide_featured_popup') === '1') {
+        return;
+      }
+
+      if (modalEl.dataset.popupShown === '1') {
+        return;
+      }
+
+      modalEl.dataset.popupShown = '1';
+
+      modalEl.querySelectorAll('[data-featured-popup-hide]').forEach(function (checkbox) {
+        checkbox.addEventListener('change', function () {
+          if (checkbox.checked) {
+            window.localStorage.setItem('lialalionne_hide_featured_popup', '1');
+          } else {
+            window.localStorage.removeItem('lialalionne_hide_featured_popup');
+          }
+        });
+      });
+
+      var modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+    }
   })();
 </script>
 @livewireScripts

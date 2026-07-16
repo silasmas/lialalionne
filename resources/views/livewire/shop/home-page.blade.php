@@ -328,7 +328,6 @@
       </div>
     </div>
   </div>
-</div>
 
 @if ($this->quickViewProduct)
   <x-shopwise-quick-view-modal :product="$this->quickViewProduct" />
@@ -337,3 +336,6 @@
 @if ($showCompareModal && $this->compareProducts->isNotEmpty())
   <x-shopwise-compare-modal :products="$this->compareProducts" />
 @endif
+
+<livewire:shop.featured-welcome-popup />
+</div>

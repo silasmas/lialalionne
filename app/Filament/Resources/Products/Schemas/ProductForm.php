@@ -2,11 +2,14 @@
 
 namespace App\Filament\Resources\Products\Schemas;
 
+use App\Support\SkuGenerator;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 
@@ -38,19 +41,38 @@ class ProductForm
               ->required()
               ->maxLength(255)
               ->live(onBlur: true)
-              ->afterStateUpdated(function ($set, ?string $state): void {
+              ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
                 $set('slug', Str::slug($state ?? ''));
+
+                if ($get('sku_auto')) {
+                  $set('sku', SkuGenerator::forProduct($state));
+                }
               }),
             TextInput::make('slug')
               ->label('Slug')
               ->required()
               ->maxLength(255)
               ->unique(ignoreRecord: true),
+            Toggle::make('sku_auto')
+              ->label('Générer le SKU automatiquement')
+              ->default(fn ($livewire): bool => $livewire instanceof \Filament\Resources\Pages\CreateRecord)
+              ->dehydrated(false)
+              ->live()
+              ->afterStateUpdated(function (Set $set, Get $get, bool $state): void {
+                if ($state) {
+                  $set('sku', SkuGenerator::forProduct($get('name')));
+                }
+              })
+              ->helperText('Activez pour générer un code unique, ou désactivez pour le saisir à la main.'),
             TextInput::make('sku')
               ->label('SKU')
               ->required()
               ->maxLength(255)
-              ->unique(ignoreRecord: true),
+              ->unique(ignoreRecord: true)
+              ->disabled(fn (Get $get): bool => (bool) $get('sku_auto'))
+              ->dehydrated()
+              ->default(fn (): string => SkuGenerator::forProduct())
+              ->helperText('Ex. LL-CREME-A3F2 — unique dans le catalogue.'),
             Textarea::make('short_description')
               ->label('Description courte')
               ->rows(2)
