@@ -6,7 +6,10 @@
   <meta name="description" content="{{ $metaDescription }}">
 @endisset
 
-<link rel="shortcut icon" type="image/x-icon" href="{{ $sw('images/favicon.png') }}">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ asset('assets/favicon-32.png') }}">
+<link rel="icon" type="image/png" sizes="192x192" href="{{ asset('assets/favicon-192.png') }}">
+<link rel="apple-touch-icon" sizes="180x180" href="{{ asset('assets/apple-touch-icon.png') }}">
+<link rel="shortcut icon" type="image/png" href="{{ asset('assets/favicon.png') }}">
 <link rel="stylesheet" href="{{ $sw('css/animate.css') }}">
 <link rel="stylesheet" href="{{ $sw('bootstrap/css/bootstrap.min.css') }}">
 <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900&display=swap" rel="stylesheet">
@@ -297,8 +300,12 @@
 
     .navbar-brand img,
     .footer_logo img {
-      max-height: 72px;
-      width: auto;
+      width: 72px;
+      height: 72px;
+      max-height: none;
+      object-fit: cover;
+      border-radius: 50%;
+      display: block;
     }
 
     .pagination .page-item a,
@@ -357,8 +364,360 @@
 
     .cookie-consent__btn--secondary {
       background: #fff;
-      color: #333;
-      border: 1px solid #ddd;
+      color: #000;
+      border: 1px solid #000;
+      border-radius: 40px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .cookie-consent__btn--secondary:hover {
+      background: #000;
+      color: #fff;
+    }
+
+    /* Boutons style OS Body : pilule + letter-spacing, or logo + noir profond */
+    .btn,
+    button.btn,
+    a.btn,
+    .btn-fill-out,
+    .btn-border-fill,
+    .btn-fill-line,
+    .btn-line-fill,
+    .btn-fill-out-dark {
+      border-radius: 40px !important;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 500;
+      font-size: 13px;
+      padding: 13px 32px !important;
+      transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, opacity 0.2s ease;
+    }
+
+    .btn-fill-out {
+      background-color: #C5A059 !important;
+      border: 1px solid #C5A059 !important;
+      color: #000000 !important;
+      overflow: hidden;
+    }
+
+    .btn-fill-out::before,
+    .btn-fill-out::after {
+      display: none !important;
+    }
+
+    .btn-fill-out:hover,
+    .btn-fill-out:focus {
+      background-color: #000000 !important;
+      border-color: #000000 !important;
+      color: #ffffff !important;
+    }
+
+    .btn-border-fill {
+      background-color: transparent !important;
+      border: 1px solid #000000 !important;
+      color: #000000 !important;
+    }
+
+    .btn-border-fill::before,
+    .btn-border-fill::after {
+      display: none !important;
+    }
+
+    .btn-border-fill:hover,
+    .btn-border-fill:focus {
+      background-color: #000000 !important;
+      border-color: #000000 !important;
+      color: #ffffff !important;
+    }
+
+    .btn-fill-line,
+    .btn-fill-out-dark {
+      background-color: #000000 !important;
+      border: 1px solid #000000 !important;
+      color: #ffffff !important;
+    }
+
+    .btn-fill-line::before,
+    .btn-fill-line::after,
+    .btn-fill-out-dark::before {
+      display: none !important;
+    }
+
+    .btn-fill-line:hover,
+    .btn-fill-out-dark:hover {
+      background-color: #C5A059 !important;
+      border-color: #C5A059 !important;
+      color: #000000 !important;
+    }
+
+    .btn-white {
+      border-radius: 40px !important;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-color: #ffffff !important;
+      color: #ffffff !important;
+      background-color: transparent !important;
+    }
+
+    .btn-white::before,
+    .btn-white::after {
+      display: none !important;
+    }
+
+    .btn-white:hover {
+      background-color: #000000 !important;
+      border-color: #000000 !important;
+      color: #ffffff !important;
+    }
+
+    /* Tout bouton noir : texte blanc clair */
+    .btn.bg-dark,
+    .btn-dark,
+    a.btn[style*="background"] {
+      color: #ffffff !important;
+    }
+
+    body,
+    h1, h2, h3, h4, h5, h6,
+    .navbar-nav .nav-link,
+    .header_wrap {
+      color: #000000;
+    }
+
+    .top-header,
+    .bottom_footer,
+    .footer_dark,
+    .bg_dark {
+      background-color: #000000 !important;
+    }
+
+    a:hover,
+    .text_default,
+    .product_title a:hover,
+    .navbar-nav .nav-item .nav-link.active,
+    .navbar-nav .nav-item:hover > .nav-link {
+      color: #C5A059 !important;
+    }
+
+    .cookie-consent__btn--primary {
+      background: #C5A059;
+      color: #000;
+      border-radius: 40px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .cookie-consent__btn--secondary {
+      border-radius: 40px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .cookie-consent__link {
+      color: #C5A059;
+    }
+
+    .pagination .page-item.active .page-link,
+    .pagination .page-link:hover,
+    .pagination .page-item.active a {
+      background-color: #C5A059;
+      border-color: #C5A059;
+      color: #000;
+    }
+
+    .payment-step-badge {
+      background-color: #C5A059;
+      color: #000;
+    }
+
+    /* Boutique : tri, liste, pagination, focus (or + noir, pas de bleu) */
+    .form-control,
+    .form-control-sm,
+    .custom_select select,
+    .custom_select select.form-control-sm,
+    select.form-control {
+      color: #000000 !important;
+      border-color: #000000 !important;
+      background-color: #ffffff !important;
+      box-shadow: none !important;
+      outline: none !important;
+      accent-color: #C5A059;
+    }
+
+    .form-control:focus,
+    .form-control-sm:focus,
+    .custom_select select:focus,
+    .custom_select select.form-control-sm:focus,
+    select.form-control:focus,
+    .form-select:focus {
+      color: #000000 !important;
+      border-color: #C5A059 !important;
+      background-color: #ffffff !important;
+      box-shadow: 0 0 0 0.2rem rgba(197, 160, 89, 0.35) !important;
+      outline: none !important;
+    }
+
+    .custom_select::before {
+      color: #C5A059 !important;
+    }
+
+    .shorting_icon {
+      border-color: #000000 !important;
+      color: #000000 !important;
+      border-radius: 8px !important;
+    }
+
+    .shorting_icon:hover {
+      background-color: #000000 !important;
+      border-color: #000000 !important;
+      color: #ffffff !important;
+    }
+
+    .shorting_icon.active {
+      background-color: #C5A059 !important;
+      border-color: #C5A059 !important;
+      color: #000000 !important;
+    }
+
+    .shorting_icon.active:hover {
+      background-color: #000000 !important;
+      border-color: #000000 !important;
+      color: #ffffff !important;
+    }
+
+    .pr_action_btn li a:hover,
+    .product_action_box .pr_action_btn li a:hover {
+      background-color: #000000 !important;
+      color: #ffffff !important;
+    }
+
+    .shop_container.list .list_product_action_box .pr_action_btn li.add-to-cart a,
+    .shop_container.list .pr_action_btn li.add-to-cart a {
+      font-size: 13px !important;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 500;
+      width: auto !important;
+      height: auto !important;
+      padding: 12px 28px !important;
+      background-color: #C5A059 !important;
+      border: 1px solid #C5A059 !important;
+      color: #000000 !important;
+      border-radius: 40px !important;
+      transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+    }
+
+    .shop_container.list .list_product_action_box .pr_action_btn li.add-to-cart a:hover,
+    .shop_container.list .pr_action_btn li.add-to-cart a:hover,
+    .shop_container.list .pr_action_btn li.add-to-cart a:focus {
+      background-color: #000000 !important;
+      border-color: #000000 !important;
+      color: #ffffff !important;
+    }
+
+    .shop_container.list .pr_action_btn li:not(.add-to-cart) a:hover {
+      background-color: #000000 !important;
+      color: #ffffff !important;
+    }
+
+    .btn-outline-dark,
+    .btn-dark {
+      border-radius: 40px !important;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    .btn-outline-dark {
+      background: transparent !important;
+      border: 1px solid #000000 !important;
+      color: #000000 !important;
+    }
+
+    .btn-outline-dark:hover,
+    .btn-outline-dark:focus {
+      background: #000000 !important;
+      border-color: #000000 !important;
+      color: #ffffff !important;
+    }
+
+    .btn-dark {
+      background: #000000 !important;
+      border: 1px solid #000000 !important;
+      color: #ffffff !important;
+    }
+
+    .btn-dark:hover,
+    .btn-dark:focus {
+      background: #C5A059 !important;
+      border-color: #C5A059 !important;
+      color: #000000 !important;
+    }
+
+    .pagination .page-link,
+    .pagination_style1 .page-item a,
+    .pagination .page-item .page-link {
+      color: #000000 !important;
+      border-color: #000000 !important;
+      background: #ffffff !important;
+      border-radius: 8px !important;
+    }
+
+    .pagination .page-item.active .page-link,
+    .pagination .page-link:hover,
+    .pagination .page-item.active a,
+    .pagination_style1 .page-item.active .page-link,
+    .pagination_style1 .page-item .page-link:hover {
+      background-color: #C5A059 !important;
+      border-color: #C5A059 !important;
+      color: #000000 !important;
+      box-shadow: none !important;
+    }
+
+    .pagination .page-item:not(.active) .page-link:hover,
+    .pagination_style1 .page-item:not(.active) .page-link:hover {
+      background-color: #000000 !important;
+      border-color: #000000 !important;
+      color: #ffffff !important;
+    }
+
+    .pagination .page-link:focus {
+      box-shadow: 0 0 0 0.2rem rgba(197, 160, 89, 0.35) !important;
+      border-color: #C5A059 !important;
+      color: #000000 !important;
+    }
+
+    .newsletter_form .btn-dark:hover {
+      background: #C5A059 !important;
+      color: #000000 !important;
+    }
+
+    .discount-ribbon {
+      position: absolute;
+      top: 18px;
+      left: -36px;
+      z-index: 6;
+      width: 130px;
+      padding: 7px 0;
+      background-color: #C5A059;
+      color: #000000;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      line-height: 1.2;
+      text-align: center;
+      text-transform: uppercase;
+      transform: rotate(-45deg);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .product_img,
+    .product_img_box {
+      overflow: hidden;
+      position: relative;
     }
 
     @media (max-width: 575px) {

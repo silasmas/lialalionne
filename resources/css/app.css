@@ -7,16 +7,19 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
-    --color-brand-50: #fef9e7;
-    --color-brand-100: #fef0c3;
-    --color-brand-200: #fde08d;
-    --color-brand-300: #f5d061;
-    --color-brand-400: #e8c547;
-    --color-brand-500: #d4af37;
+    /* Noir logo + or métallique Lialalionne */
+    --color-ink: #000000;
+    --color-ink-soft: #0a0a0a;
+    --color-brand-50: #fbf6e8;
+    --color-brand-100: #f5ebc8;
+    --color-brand-200: #ebd894;
+    --color-brand-300: #dfc46a;
+    --color-brand-400: #d4af37;
+    --color-brand-500: #c9a227;
     --color-brand-600: #c5a059;
-    --color-brand-700: #a67c00;
-    --color-brand-800: #8b6914;
-    --color-brand-900: #734f08;
+    --color-brand-700: #9a7420;
+    --color-brand-800: #6f5216;
+    --color-brand-900: #4a3511;
 }
 
 .lw-action {
@@ -146,3 +149,26 @@
   color: #333;
   border: 1px solid #ddd;
 }
+
+/* Bandeau réduction oblique (cartes produits) */
+.discount-ribbon {
+  position: absolute;
+  top: 18px;
+  left: -36px;
+  z-index: 30;
+  width: 130px;
+  padding: 7px 0;
+  background-color: #c5a059;
+  color: #000000;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  white-space: nowrap;
+}
+

@@ -59,9 +59,9 @@
                 </button>
               </div>
             @else
-              <div class="row shop_container {{ $viewMode === 'list' ? 'list' : 'grid' }}">
+              <div class="row shop_container {{ $viewMode === 'list' ? 'list' : 'grid' }}" wire:key="shop-view-{{ $viewMode }}">
                 @foreach ($products as $product)
-                  <div class="col-md-4 col-6">
+                  <div class="col-md-4 col-6" wire:key="product-{{ $product->id }}-{{ $viewMode }}">
                     <x-shopwise-product-item
                       :product="$product"
                       :favorite-ids="$favoriteIds"
@@ -73,8 +73,10 @@
 
               <div class="row">
                 <div class="col-12">
-                  <div class="mt-3 pagination_style1">
-                    {{ $products->links('pagination::bootstrap-5') }}
+                  <div class="mt-3 pagination_style1" wire:key="shop-pagination-{{ $viewMode }}">
+                    {{ $products->onEachSide(1)->links('pagination::bootstrap-5', [
+                      'scrollTo' => false,
+                    ]) }}
                   </div>
                 </div>
               </div>
@@ -122,7 +124,7 @@
 
               @if ($search || $categoryId || $sort !== 'featured')
                 <div class="widget">
-                  <button type="button" wire:click="resetFilters" class="btn btn-outline-dark btn-sm w-100">
+                  <button type="button" wire:click="resetFilters" class="btn btn-fill-out btn-sm w-100">
                     Réinitialiser les filtres
                   </button>
                 </div>
@@ -136,7 +138,7 @@
                   <div class="shop_bn_content2 text_white">
                     <h5 class="text-uppercase shop_subtitle">Nouvelle collection</h5>
                     <h3 class="text-uppercase shop_title">Jusqu'à 30% de rabais</h3>
-                    <a href="{{ route('shop.catalog') }}" class="btn btn-white rounded-0 btn-sm text-uppercase">Acheter</a>
+                    <a href="{{ route('shop.catalog') }}" class="btn btn-fill-out btn-sm text-uppercase">Acheter</a>
                   </div>
                 </div>
               </div>

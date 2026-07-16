@@ -27,8 +27,24 @@ class ProductCatalog extends Component
   #[Url(as: 'tri')]
   public string $sort = 'featured';
 
-  #[Url(as: 'vue')]
+  #[Url(as: 'vue', history: true, keep: true)]
   public string $viewMode = 'grid';
+
+  /**
+   * Restaure le mode d'affichage depuis la session si besoin.
+   *
+   * @return void
+   */
+  public function mount(): void
+  {
+    if (!request()->has('vue') && session()->has('shop_view_mode')) {
+      $this->viewMode = $this->normalizeViewMode((string) session('shop_view_mode'));
+    } else {
+      $this->viewMode = $this->normalizeViewMode($this->viewMode);
+    }
+
+    session(['shop_view_mode' => $this->viewMode]);
+  }
 
   /**
    * Réinitialise la pagination quand la recherche change.
@@ -61,7 +77,19 @@ class ProductCatalog extends Component
   }
 
   /**
-   * Efface tous les filtres actifs.
+   * Persiste le mode d'affichage quand il change.
+   *
+   * @param string $value Mode grille ou liste
+   * @return void
+   */
+  public function updatedViewMode(string $value): void
+  {
+    $this->viewMode = $this->normalizeViewMode($value);
+    session(['shop_view_mode' => $this->viewMode]);
+  }
+
+  /**
+   * Efface tous les filtres actifs (conserve la vue grille/liste).
    *
    * @return void
    */
@@ -81,6 +109,7 @@ class ProductCatalog extends Component
   public function setGridView(): void
   {
     $this->viewMode = 'grid';
+    session(['shop_view_mode' => 'grid']);
   }
 
   /**
@@ -91,6 +120,18 @@ class ProductCatalog extends Component
   public function setListView(): void
   {
     $this->viewMode = 'list';
+    session(['shop_view_mode' => 'list']);
+  }
+
+  /**
+   * Normalise le mode d'affichage catalogue.
+   *
+   * @param string $mode Mode demandé
+   * @return string Mode valide (grid|list)
+   */
+  private function normalizeViewMode(string $mode): string
+  {
+    return in_array($mode, ['grid', 'list'], true) ? $mode : 'grid';
   }
 
   /**
@@ -137,7 +178,7 @@ class ProductCatalog extends Component
   {
     $this->loadFavoriteIds($favoriteService);
 
-    $products = $this->buildQuery()->paginate(12);
+    $products = $this->buildQuery()->paginate(20);
     $categories = Category::query()
       ->where('is_active', true)
       ->orderBy('sort_order')

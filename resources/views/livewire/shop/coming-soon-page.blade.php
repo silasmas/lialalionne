@@ -3,7 +3,7 @@
     <img
       src="{{ asset('assets/logo.jpeg') }}"
       alt="Lialalionne"
-      class="mx-auto mb-8 max-h-14 w-auto"
+      class="mx-auto mb-8 h-16 w-16 rounded-full object-cover"
     >
 
     <p class="mb-2 text-sm uppercase tracking-[0.35em] text-brand-400">Luxury</p>

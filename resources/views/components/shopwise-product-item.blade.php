@@ -32,13 +32,10 @@
     <span class="pr_flash">Nouveau</span>
   @endif
 
-  @if ($product->hasDiscount() && !$showNewBadge)
-    <div class="on_sale">
-      <span>{{ $discountPercent }}% de rabais</span>
-    </div>
-  @endif
-
   <div class="product_img">
+    @if ($product->hasDiscount() && $discountPercent && !$showNewBadge)
+      <x-discount-ribbon :percent="$discountPercent" />
+    @endif
     <a href="{{ $productUrl }}">
       <img src="{{ $imageUrl }}" alt="{{ $product->name }}">
     </a>
@@ -80,9 +77,6 @@
       <span class="price">{{ $product->formatPrice() }}</span>
       @if ($product->hasDiscount())
         <del>{{ $product->formatPrice($product->compare_at_price) }}</del>
-        @if ($discountPercent)
-          <div class="on_sale"><span>{{ $discountPercent }}% de rabais</span></div>
-        @endif
       @endif
     </div>
     <div class="rating_wrap">

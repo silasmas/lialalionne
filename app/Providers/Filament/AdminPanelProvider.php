@@ -40,6 +40,9 @@ class AdminPanelProvider extends PanelProvider
       ->path('admin')
       ->login()
       ->brandName('Lialalionne Admin')
+      ->brandLogo(asset('assets/logo.jpeg'))
+      ->brandLogoHeight('2.5rem')
+      ->favicon(asset('assets/favicon.png'))
       ->colors([
         'primary' => Color::hex('#C5A059'),
       ])

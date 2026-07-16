@@ -75,6 +75,9 @@
                 </div>
               @endif
               <div class="product_img_box">
+                @if ($discountPercent)
+                  <x-discount-ribbon :percent="$discountPercent" />
+                @endif
                 <img
                   id="product_img"
                   src="{{ $mainImageUrl }}"
@@ -98,9 +101,6 @@
                   <span class="price">{{ $product->formatPrice($this->currentPrice) }}</span>
                   @if ($product->hasDiscount() && !$this->selectedVariant)
                     <del>{{ $product->formatPrice($product->compare_at_price) }}</del>
-                    @if ($discountPercent)
-                      <div class="on_sale"><span>{{ $discountPercent }}% de rabais</span></div>
-                    @endif
                   @endif
                 </div>
                 <div class="rating_wrap">

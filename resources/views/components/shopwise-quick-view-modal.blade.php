@@ -14,6 +14,12 @@
               <div class="col-lg-6 col-md-6 mb-4 mb-md-0">
                 <div class="product-image">
                   <div class="product_img_box">
+                    @if ($product->hasDiscount() && (float) $product->compare_at_price > 0)
+                      @php
+                        $quickDiscountPercent = (int) round((1 - ((float) $product->price / (float) $product->compare_at_price)) * 100);
+                      @endphp
+                      <x-discount-ribbon :percent="$quickDiscountPercent" />
+                    @endif
                     <img
                       id="product_img"
                       src="{{ $product->primaryImageUrl() ?? asset('shopwise/assets/images/product_img1.jpg') }}"
@@ -33,7 +39,6 @@
                       <span class="price">{{ $product->formatPrice() }}</span>
                       @if ($product->hasDiscount())
                         <del>{{ $product->formatPrice($product->compare_at_price) }}</del>
-                        <div class="on_sale"><span>Promo</span></div>
                       @endif
                     </div>
                     @if ($product->short_description)

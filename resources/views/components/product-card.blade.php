@@ -64,9 +64,12 @@
     @endif
 
     @if ($product->hasDiscount())
-      <span class="pointer-events-none absolute bottom-3 left-3 z-20 rounded-full bg-brand-600 px-2 py-0.5 text-xs font-semibold text-white">
-        Promo
-      </span>
+      @php
+        $cardDiscountPercent = (float) $product->compare_at_price > 0
+          ? (int) round((1 - ((float) $product->price / (float) $product->compare_at_price)) * 100)
+          : null;
+      @endphp
+      <x-discount-ribbon :percent="$cardDiscountPercent" />
     @endif
 
     @if (!$product->isInStock())
