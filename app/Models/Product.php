@@ -132,13 +132,9 @@ class Product extends Model
   public function primaryImageUrl(): ?string
   {
     $image = $this->images->firstWhere('is_primary', true)
-      ?? $this->images->first();
+      ?? $this->images->sortBy('sort_order')->first();
 
-    if (!$image) {
-      return null;
-    }
-
-    return asset('storage/' . ltrim($image->path, '/'));
+    return $image?->url;
   }
 
   /**

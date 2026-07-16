@@ -7,6 +7,7 @@
   'confirm' => null,
   'loadingLabel' => null,
   'loaderSize' => 'sm',
+  'disabled' => false,
 ])
 
 @php
@@ -15,6 +16,7 @@
   $clickPrefix = $stop ? 'wire:click.stop' : 'wire:click';
   $clickSuffix = $prevent ? '.prevent' : '';
   $clickAttribute = $clickPrefix . $clickSuffix . '="' . $action . '"';
+  $isDisabled = filter_var($disabled, FILTER_VALIDATE_BOOLEAN);
 @endphp
 
 @if ($tag === 'a')
@@ -25,7 +27,8 @@
     wire:loading.attr="disabled"
     wire:target="{{ $action }}"
     wire:loading.class="lw-action--loading"
-    {{ $attributes->merge(['class' => $mergedClass]) }}
+    @if ($isDisabled) aria-disabled="true" tabindex="-1" @endif
+    {{ $attributes->class([$mergedClass, 'opacity-50' => $isDisabled])->except('class') }}
   >
     <span class="lw-action__content" wire:loading.remove wire:target="{{ $action }}">
       {{ $slot }}
@@ -45,7 +48,8 @@
     wire:loading.attr="disabled"
     wire:target="{{ $action }}"
     wire:loading.class="lw-action--loading"
-    {{ $attributes->merge(['class' => $mergedClass]) }}
+    @if ($isDisabled) disabled @endif
+    {{ $attributes->class([$mergedClass])->except('class') }}
   >
     <span class="lw-action__content" wire:loading.remove wire:target="{{ $action }}">
       {{ $slot }}

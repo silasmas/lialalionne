@@ -23,9 +23,10 @@
       <ul class="cart_list">
         @foreach ($items as $item)
           @php
-            $imageUrl = $item->product
-              ? ShopwiseAssets::productImageUrl($item->product_id)
-              : asset('shopwise/assets/images/product_img1.jpg');
+            $imageUrl = $item->product?->primaryImageUrl()
+              ?? ($item->product
+                ? ShopwiseAssets::productImageUrl($item->product_id)
+                : asset('shopwise/assets/images/product_img1.jpg'));
           @endphp
           <li wire:key="mini-cart-item-{{ $item->id }}">
             <x-lw-action

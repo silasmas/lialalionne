@@ -3,6 +3,7 @@
     ? $images
     : collect([(object) [
       'path' => null,
+      'url' => null,
       'alt_text' => $product->name,
       'fallback' => $sw('images/product_img1.jpg'),
       'thumb' => $sw('images/product_small_img1.jpg'),
@@ -10,9 +11,9 @@
     ]]);
 
   $primaryImage = $galleryImages->first();
-  $mainImageUrl = $primaryImage->path
-    ? asset('storage/' . ltrim($primaryImage->path, '/'))
-    : ($primaryImage->fallback ?? $sw('images/product_img1.jpg'));
+  $mainImageUrl = $primaryImage->url
+    ?? $primaryImage->fallback
+    ?? $sw('images/product_img1.jpg');
   $mainZoomUrl = $primaryImage->zoom ?? $mainImageUrl;
 
   $discountPercent = null;
@@ -54,12 +55,11 @@
                 >
                   @foreach ($galleryImages as $index => $image)
                     @php
-                      $hasStoragePath = !empty($image->path);
-                      $imageUrl = $hasStoragePath
-                        ? asset('storage/' . ltrim($image->path, '/'))
-                        : ($image->fallback ?? $sw('images/product_img1.jpg'));
-                      $thumbUrl = $hasStoragePath ? $imageUrl : ($image->thumb ?? $imageUrl);
-                      $zoomUrl = $hasStoragePath ? $imageUrl : ($image->zoom ?? $imageUrl);
+                      $imageUrl = $image->url
+                        ?? $image->fallback
+                        ?? $sw('images/product_img1.jpg');
+                      $thumbUrl = $image->url ? $imageUrl : ($image->thumb ?? $imageUrl);
+                      $zoomUrl = $image->url ? $imageUrl : ($image->zoom ?? $imageUrl);
                     @endphp
                     <div class="item">
                       <a
@@ -155,7 +155,7 @@
                     :prevent="false"
                     loading-label="Ajout..."
                     loader-size="md"
-                    @disabled(!$this->isAvailable)
+                    :disabled="!$this->isAvailable"
                   >
                     <i class="icon-basket-loaded"></i> Ajouter au panier
                   </x-lw-action>

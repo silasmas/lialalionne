@@ -41,7 +41,7 @@
                         <td class="product-thumbnail">
                           <a href="{{ route('products.show', $item->product) }}">
                             <img
-                              src="{{ ShopwiseAssets::productImageUrl($item->product_id) }}"
+              src="{{ $item->product->primaryImageUrl() ?? ShopwiseAssets::productImageUrl($item->product_id) }}"
                               alt="{{ $item->product->name }}"
                             >
                           </a>

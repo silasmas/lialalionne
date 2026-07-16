@@ -12,7 +12,9 @@
   $isFavorite = in_array($product->id, $favoriteIds, true);
   $justAdded = $cartAddedProductId === $product->id;
   $productUrl = route('products.show', $product);
-  $imageUrl = $displayImageUrl ?? ShopwiseAssets::productImageUrl($product->id);
+  $imageUrl = $displayImageUrl
+    ?? $product->primaryImageUrl()
+    ?? ShopwiseAssets::productImageUrl($product->id);
   $discountPercent = null;
   $cartAction = 'addProductToCart(' . $product->id . ')';
   $compareAction = 'addProductToCompare(' . $product->id . ')';

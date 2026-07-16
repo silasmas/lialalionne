@@ -168,7 +168,12 @@ class ProductShow extends Component
     $this->loadFavoriteIds($favoriteService);
 
     return view('livewire.shop.product-show', [
-      'images' => $this->product->images,
+      'images' => $this->product->images
+        ->sortBy([
+          ['is_primary', 'desc'],
+          ['sort_order', 'asc'],
+        ])
+        ->values(),
     ])->layout('layouts.shopwise', [
       'title' => $this->product->name . ' — Lialalionne',
     ]);
