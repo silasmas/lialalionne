@@ -4,6 +4,7 @@ use App\Http\Controllers\FlexPayWebhookController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\LogoutController;
 use App\Http\Controllers\PaymentWebhookController;
+use App\Http\Controllers\PublicMediaController;
 use App\Livewire\Account\DashboardPage;
 use App\Livewire\Account\FavoritesPage;
 use App\Livewire\Account\LoginPage;
@@ -22,6 +23,10 @@ use App\Livewire\Shop\OrderConfirmation;
 use App\Livewire\Shop\ProductCatalog;
 use App\Livewire\Shop\ProductShow;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/media/{path}', [PublicMediaController::class, 'show'])
+  ->where('path', '.*')
+  ->name('media.show');
 
 Route::get('/install', [InstallController::class, 'show'])->name('install.setup');
 Route::post('/install/environment', [InstallController::class, 'saveEnvironment'])->name('install.environment');

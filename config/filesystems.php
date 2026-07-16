@@ -41,7 +41,8 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            // /media est servi par PublicMediaController (évite les 403 symlink hébergeur sur /storage)
+            'url' => rtrim(env('FILESYSTEM_PUBLIC_URL', env('APP_URL', 'http://localhost').'/media'), '/'),
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

@@ -76,7 +76,7 @@ class RedirectIfComingSoon
    */
   private function isExempt(Request $request): bool
   {
-    if ($request->is('admin', 'admin/*', 'install', 'install/*', 'up', 'livewire/*')) {
+    if ($request->is('admin', 'admin/*', 'install', 'install/*', 'up', 'livewire/*', 'media', 'media/*')) {
       return true;
     }
 

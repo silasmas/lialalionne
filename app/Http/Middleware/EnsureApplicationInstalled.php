@@ -22,6 +22,8 @@ class EnsureApplicationInstalled
     'install/*',
     'up',
     'livewire/*',
+    'media',
+    'media/*',
   ];
 
   /**

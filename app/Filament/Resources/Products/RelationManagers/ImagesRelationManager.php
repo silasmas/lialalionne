@@ -41,6 +41,7 @@ class ImagesRelationManager extends RelationManager
           ->label('Image')
           ->image()
           ->required()
+          ->disk('public')
           ->directory('products')
           ->visibility('public'),
         TextInput::make('alt_text')
@@ -67,7 +68,8 @@ class ImagesRelationManager extends RelationManager
       ->defaultSort('sort_order')
       ->columns([
         ImageColumn::make('path')
-          ->label('Aperçu'),
+          ->label('Aperçu')
+          ->disk('public'),
         TextColumn::make('alt_text')
           ->label('Alt'),
         TextColumn::make('sort_order')
