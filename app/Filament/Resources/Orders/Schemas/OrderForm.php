@@ -64,6 +64,9 @@ class OrderForm
               ->label('Livraison')
               ->numeric()
               ->disabled(),
+            TextInput::make('coupon_code')
+              ->label('Code promo')
+              ->disabled(),
             TextInput::make('discount_amount')
               ->label('Remise')
               ->numeric()

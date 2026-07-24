@@ -7,6 +7,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Events\OrderPlaced;
 use App\Models\Cart;
+use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\OrderAddress;
 use App\Models\Payment;
@@ -25,11 +26,13 @@ class OrderService
    * @param StockService $stockService Service de gestion des stocks
    * @param CartService $cartService Service panier
    * @param CurrencyService $currencyService Service devises
+   * @param CouponService $couponService Service codes promo
    */
   public function __construct(
     private readonly StockService $stockService,
     private readonly CartService $cartService,
-    private readonly CurrencyService $currencyService
+    private readonly CurrencyService $currencyService,
+    private readonly CouponService $couponService
   ) {
   }
 
@@ -64,18 +67,36 @@ class OrderService
 
       $subtotalEur = $cart->subtotal();
       $shippingEur = $fulfillmentType === 'pickup' ? 0.0 : (float) ($data['shipping_amount'] ?? 0);
-      $discountEur = (float) ($data['discount_amount'] ?? 0);
       $taxEur = (float) ($data['tax_amount'] ?? 0);
+
+      $userId = $data['user_id'] ?? Auth::id();
+      $user = $userId ? User::query()->find($userId) : null;
+
+      $coupon = null;
+      $discountEur = 0.0;
+      $couponCode = null;
+
+      if (!empty($data['coupon_code'])) {
+        $coupon = $this->couponService->validateForCheckout(
+          (string) $data['coupon_code'],
+          $subtotalEur,
+          $user
+        );
+        $discountEur = $this->couponService->calculateDiscountEur($coupon, $subtotalEur);
+        $couponCode = $coupon->code;
+      } elseif (isset($data['discount_amount'])) {
+        $discountEur = max(0, (float) $data['discount_amount']);
+      }
 
       $subtotal = $this->currencyService->convertFromEur($subtotalEur, $currency);
       $shippingAmount = $this->currencyService->convertFromEur($shippingEur, $currency);
       $discountAmount = $this->currencyService->convertFromEur($discountEur, $currency);
       $taxAmount = $this->currencyService->convertFromEur($taxEur, $currency);
-      $total = $subtotal + $shippingAmount + $taxAmount - $discountAmount;
+      $total = max(0, $subtotal + $shippingAmount + $taxAmount - $discountAmount);
 
       $order = Order::query()->create([
         'order_number' => $this->generateOrderNumber(),
-        'user_id' => $data['user_id'] ?? Auth::id(),
+        'user_id' => $userId,
         'status' => OrderStatus::Pending,
         'payment_method' => $data['payment_method'] ?? PaymentMethod::Stripe,
         'fulfillment_type' => $fulfillmentType,
@@ -86,7 +107,13 @@ class OrderService
         'total' => $total,
         'currency' => $currency,
         'notes' => $data['notes'] ?? null,
+        'coupon_id' => $coupon?->id,
+        'coupon_code' => $couponCode,
       ]);
+
+      if ($coupon instanceof Coupon) {
+        $this->couponService->recordUsage($coupon);
+      }
 
       foreach ($cart->items as $item) {
         $unitPrice = $this->currencyService->convertFromEur((float) $item->unit_price, $currency);

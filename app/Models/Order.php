@@ -31,6 +31,8 @@ class Order extends Model
     'total',
     'currency',
     'notes',
+    'coupon_id',
+    'coupon_code',
     'tracking_number',
     'shipment_notified_tracking',
     'fulfillment_type',
@@ -66,6 +68,16 @@ class Order extends Model
   public function user(): BelongsTo
   {
     return $this->belongsTo(User::class);
+  }
+
+  /**
+   * Code promo appliqué à la commande.
+   *
+   * @return BelongsTo<Coupon, $this>
+   */
+  public function coupon(): BelongsTo
+  {
+    return $this->belongsTo(Coupon::class);
   }
 
   /**

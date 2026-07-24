@@ -222,6 +222,44 @@
                     </div>
                   @endif
 
+                  <div class="coupon_form mb-3">
+                    <label class="small text-muted d-block mb-1">Code promo</label>
+                    @if ($appliedCouponCode)
+                      <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
+                        <div>
+                          <strong>{{ $appliedCouponCode }}</strong>
+                          @if ($appliedCouponLabel)
+                            <span class="text-muted small d-block">{{ $appliedCouponLabel }}</span>
+                          @endif
+                        </div>
+                        <button type="button" class="btn btn-sm btn-link text-danger p-0" wire:click="removeCoupon">
+                          Retirer
+                        </button>
+                      </div>
+                    @else
+                      <div class="input-group">
+                        <input
+                          type="text"
+                          wire:model="couponCode"
+                          class="form-control @error('couponCode') is-invalid @enderror"
+                          placeholder="Ex. BIENVENUE10"
+                          autocomplete="off"
+                        >
+                        <button
+                          type="button"
+                          class="btn btn-fill-out"
+                          wire:click="applyCoupon"
+                          wire:loading.attr="disabled"
+                          wire:target="applyCoupon"
+                        >
+                          <span wire:loading.remove wire:target="applyCoupon">Appliquer</span>
+                          <span wire:loading wire:target="applyCoupon">…</span>
+                        </button>
+                      </div>
+                    @endif
+                    @error('couponCode') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                  </div>
+
                   <div class="table-responsive order_table">
                     <table class="table">
                       <thead>
@@ -253,6 +291,12 @@
                           <th>{{ $fulfillmentType === 'pickup' ? 'Retrait' : 'Livraison' }}</th>
                           <td>{{ $fulfillmentType === 'pickup' ? 'Gratuit' : $currencyService->format($shippingAmount, $currency) }}</td>
                         </tr>
+                        @if ($discountAmount > 0)
+                          <tr>
+                            <th>Remise{{ $appliedCouponCode ? ' (' . $appliedCouponCode . ')' : '' }}</th>
+                            <td class="text-success">− {{ $currencyService->format($discountAmount, $currency) }}</td>
+                          </tr>
+                        @endif
                         <tr>
                           <th>Total</th>
                           <td class="product-subtotal"><strong>{{ $currencyService->format($total, $currency) }}</strong></td>

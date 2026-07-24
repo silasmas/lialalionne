@@ -9,6 +9,7 @@ use App\Livewire\Shop\Concerns\DispatchesShopToast;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\CartService;
+use App\Services\CouponService;
 use App\Services\CurrencyService;
 use App\Services\FlexPayService;
 use App\Services\MobileMoneyService;
@@ -66,7 +67,17 @@ class CheckoutPage extends Component
 
   public float $shippingAmount = 0;
 
+  public float $discountEur = 0;
+
+  public float $discountAmount = 0;
+
   public float $total = 0;
+
+  public string $couponCode = '';
+
+  public ?string $appliedCouponCode = null;
+
+  public ?string $appliedCouponLabel = null;
 
   public string $checkoutPhase = 'form';
 
@@ -540,7 +551,66 @@ class CheckoutPage extends Component
   }
 
   /**
-   * Met à jour sous-total, livraison et total dans la devise choisie.
+   * Applique un code promo saisi au checkout.
+   *
+   * @param CouponService $couponService Service codes promo
+   * @param ShippingService $shippingService Service livraison
+   * @param CurrencyService $currencyService Service devises
+   * @return void
+   */
+  public function applyCoupon(
+    CouponService $couponService,
+    ShippingService $shippingService,
+    CurrencyService $currencyService
+  ): void {
+    $this->resetValidation('couponCode');
+
+    try {
+      $coupon = $couponService->validateForCheckout(
+        $this->couponCode,
+        $this->subtotalEur,
+        Auth::user()
+      );
+
+      $this->appliedCouponCode = $coupon->code;
+      $this->appliedCouponLabel = $coupon->name;
+      $this->couponCode = $coupon->code;
+      $this->discountEur = $couponService->calculateDiscountEur($coupon, $this->subtotalEur);
+      $this->recalculateTotals($shippingService, $currencyService);
+      $this->dispatchShopToast('Code promo « ' . $coupon->code . ' » appliqué.', 'success');
+    } catch (ValidationException $exception) {
+      $this->appliedCouponCode = null;
+      $this->appliedCouponLabel = null;
+      $this->discountEur = 0;
+      $this->recalculateTotals($shippingService, $currencyService);
+
+      foreach ($exception->errors() as $field => $messages) {
+        foreach ($messages as $message) {
+          $this->addError($field, $message);
+        }
+      }
+    }
+  }
+
+  /**
+   * Retire le code promo appliqué.
+   *
+   * @param ShippingService $shippingService Service livraison
+   * @param CurrencyService $currencyService Service devises
+   * @return void
+   */
+  public function removeCoupon(ShippingService $shippingService, CurrencyService $currencyService): void
+  {
+    $this->couponCode = '';
+    $this->appliedCouponCode = null;
+    $this->appliedCouponLabel = null;
+    $this->discountEur = 0;
+    $this->resetValidation('couponCode');
+    $this->recalculateTotals($shippingService, $currencyService);
+  }
+
+  /**
+   * Met à jour sous-total, livraison, remise et total dans la devise choisie.
    *
    * @param ShippingService $shippingService Service livraison
    * @param CurrencyService $currencyService Service devises
@@ -548,11 +618,31 @@ class CheckoutPage extends Component
    */
   private function recalculateTotals(ShippingService $shippingService, CurrencyService $currencyService): void
   {
+    if ($this->appliedCouponCode) {
+      try {
+        $coupon = app(CouponService::class)->validateForCheckout(
+          $this->appliedCouponCode,
+          $this->subtotalEur,
+          Auth::user()
+        );
+        $this->discountEur = app(CouponService::class)->calculateDiscountEur($coupon, $this->subtotalEur);
+        $this->appliedCouponLabel = $coupon->name;
+      } catch (ValidationException) {
+        $this->appliedCouponCode = null;
+        $this->appliedCouponLabel = null;
+        $this->discountEur = 0;
+        $this->couponCode = '';
+      }
+    } else {
+      $this->discountEur = 0;
+    }
+
     $this->subtotal = $currencyService->convertFromEur($this->subtotalEur, $this->currency);
+    $this->discountAmount = $currencyService->convertFromEur($this->discountEur, $this->currency);
 
     if ($this->fulfillmentType === 'pickup') {
       $this->shippingAmount = 0;
-      $this->total = $this->subtotal;
+      $this->total = max(0, $this->subtotal - $this->discountAmount);
 
       return;
     }
@@ -569,7 +659,7 @@ class CheckoutPage extends Component
 
     $shippingEur = $shippingService->calculate($this->subtotalEur, $this->country, $this->shippingRateId);
     $this->shippingAmount = $currencyService->convertFromEur($shippingEur, $this->currency);
-    $this->total = $this->subtotal + $this->shippingAmount;
+    $this->total = max(0, $this->subtotal + $this->shippingAmount - $this->discountAmount);
   }
 
   /**
@@ -739,6 +829,7 @@ class CheckoutPage extends Component
         'currency' => $this->currency,
         'customer_email' => $this->email,
         'notes' => $this->notes ?: null,
+        'coupon_code' => $this->appliedCouponCode,
         'mobile_money_operator' => $mobileMoneyOperator,
         'mobile_money_phone' => $mobileMoneyPhone,
       ]);

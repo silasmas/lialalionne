@@ -62,7 +62,7 @@ ShippingZone ──< ShippingRate
 | 1.8 | `order_addresses` | ✅ |
 | 1.9 | `payments` | ✅ |
 | 1.10 | `shipping_zones` / `shipping_rates` | ✅ |
-| 1.11 | `coupons` | ⏸️ Phase 2 |
+| 1.11 | `coupons` | ✅ |
 | 1.12 | `reviews` | ⏸️ Phase 2 |
 
 ### Modèles Eloquent
@@ -99,7 +99,7 @@ ShippingZone ──< ShippingRate
 | 2.3 | `ProductResource` (CRUD + images + variantes) | ✅ |
 | 2.4 | `OrderResource` (liste, détail, changement statut) | ✅ |
 | 2.5 | `CustomerResource` (`UserResource` — clients) | ✅ |
-| 2.6 | `CouponResource` | ⏸️ |
+| 2.6 | `CouponResource` | ✅ |
 | 2.7 | `ShippingZoneResource` (+ tarifs) | ✅ |
 | 2.8 | Dashboard (CA, commandes récentes, stock bas) | ✅ |
 | 2.10 | Page paramètres boutique (`ShopSettings`) | ✅ |
@@ -184,7 +184,7 @@ ShippingZone ──< ShippingRate
 
 | # | Fonctionnalité | Statut |
 |---|----------------|--------|
-| 7.1 | Codes promo | ⏸️ |
+| 7.1 | Codes promo | ✅ |
 | 7.2 | Avis clients | ⏸️ |
 | 7.3 | Newsletter | ⏸️ |
 | 7.4 | Programme fidélité | ⏸️ |
@@ -330,7 +330,7 @@ php artisan make:filament-user
 | 🟠 | Images produits | Uploader les vraies photos via Filament (max 6 par produit) |
 | 🟡 | Email expédition | Notifier le client quand `tracking_number` est renseigné |
 | 🟡 | Tests | Étendre la couverture PHPUnit (checkout Livewire, OTP) |
-| ⏸️ | Post-MVP | Coupons, avis, newsletter, SEO, RGPD avancé |
+| ⏸️ | Post-MVP | Avis, newsletter, SEO, RGPD avancé |
 
 ### Commandes utiles
 

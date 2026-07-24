@@ -198,29 +198,48 @@ class PaymentService
 
     $lineItems = [];
 
-    foreach ($order->items as $item) {
-      $lineItems[] = [
-        'price_data' => [
-          'currency' => strtolower($order->currency),
-          'unit_amount' => (int) round((float) $item->unit_price * 100),
-          'product_data' => [
-            'name' => $item->product_name . ($item->variant_name ? " ({$item->variant_name})" : ''),
-            'metadata' => ['sku' => $item->sku],
-          ],
-        ],
-        'quantity' => $item->quantity,
-      ];
-    }
+    // Stripe n'accepte pas de ligne négative : avec remise, on facture le total consolidé.
+    if ((float) $order->discount_amount > 0) {
+      $description = $order->coupon_code
+        ? 'Remise code ' . $order->coupon_code . ' appliquée'
+        : 'Remise appliquée';
 
-    if ((float) $order->shipping_amount > 0) {
       $lineItems[] = [
         'price_data' => [
           'currency' => strtolower($order->currency),
-          'unit_amount' => (int) round((float) $order->shipping_amount * 100),
-          'product_data' => ['name' => 'Frais de livraison'],
+          'unit_amount' => (int) round((float) $order->total * 100),
+          'product_data' => [
+            'name' => 'Commande ' . $order->order_number,
+            'description' => $description,
+          ],
         ],
         'quantity' => 1,
       ];
+    } else {
+      foreach ($order->items as $item) {
+        $lineItems[] = [
+          'price_data' => [
+            'currency' => strtolower($order->currency),
+            'unit_amount' => (int) round((float) $item->unit_price * 100),
+            'product_data' => [
+              'name' => $item->product_name . ($item->variant_name ? " ({$item->variant_name})" : ''),
+              'metadata' => ['sku' => $item->sku],
+            ],
+          ],
+          'quantity' => $item->quantity,
+        ];
+      }
+
+      if ((float) $order->shipping_amount > 0) {
+        $lineItems[] = [
+          'price_data' => [
+            'currency' => strtolower($order->currency),
+            'unit_amount' => (int) round((float) $order->shipping_amount * 100),
+            'product_data' => ['name' => 'Frais de livraison'],
+          ],
+          'quantity' => 1,
+        ];
+      }
     }
 
     $customerEmail = $order->payment?->metadata['customer_email'] ?? null;

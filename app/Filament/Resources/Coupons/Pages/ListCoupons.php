@@ -1,0 +1,27 @@
+<?php
+
+namespace App\Filament\Resources\Coupons\Pages;
+
+use App\Filament\Resources\Coupons\CouponResource;
+use Filament\Actions\CreateAction;
+use Filament\Resources\Pages\ListRecords;
+
+/**
+ * Liste des codes promo.
+ */
+class ListCoupons extends ListRecords
+{
+  protected static string $resource = CouponResource::class;
+
+  /**
+   * Actions d'en-tête de la liste.
+   *
+   * @return array<int, CreateAction>
+   */
+  protected function getHeaderActions(): array
+  {
+    return [
+      CreateAction::make(),
+    ];
+  }
+}
