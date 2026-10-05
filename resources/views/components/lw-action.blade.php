@@ -28,7 +28,7 @@
     wire:target="{{ $action }}"
     wire:loading.class="lw-action--loading"
     @if ($isDisabled) aria-disabled="true" tabindex="-1" @endif
-    {{ $attributes->class([$mergedClass, 'opacity-50' => $isDisabled])->except('class') }}
+    {{ $attributes->class([$mergedClass, 'opacity-50' => $isDisabled]) }}
   >
     <span class="lw-action__content" wire:loading.remove wire:target="{{ $action }}">
       {{ $slot }}
@@ -49,7 +49,7 @@
     wire:target="{{ $action }}"
     wire:loading.class="lw-action--loading"
     @if ($isDisabled) disabled @endif
-    {{ $attributes->class([$mergedClass])->except('class') }}
+    {{ $attributes->class([$mergedClass]) }}
   >
     <span class="lw-action__content" wire:loading.remove wire:target="{{ $action }}">
       {{ $slot }}

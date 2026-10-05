@@ -25,8 +25,9 @@
     $discountPercent = (int) round((1 - ((float) $product->price / (float) $product->compare_at_price)) * 100);
   }
 
-  $ratingWidth = 60 + (($product->id * 17) % 35);
-  $reviewCount = 5 + (($product->id * 3) % 40);
+  $averageRating = $product->averageRating();
+  $reviewCount = $product->reviewsCount();
+  $ratingWidth = $reviewCount > 0 ? ($averageRating / 5) * 100 : 0;
 @endphp
 
 <div class="product">
@@ -81,12 +82,14 @@
         <del>{{ $product->formatPrice($product->compare_at_price) }}</del>
       @endif
     </div>
-    <div class="rating_wrap">
-      <div class="rating">
-        <div class="product_rate" style="width:{{ $ratingWidth }}%"></div>
+    @if ($reviewCount > 0)
+      <div class="rating_wrap">
+        <div class="rating">
+          <div class="product_rate" style="width:{{ $ratingWidth }}%"></div>
+        </div>
+        <span class="rating_num">({{ $reviewCount }})</span>
       </div>
-      <span class="rating_num">({{ $reviewCount }})</span>
-    </div>
+    @endif
     @if ($product->short_description)
       <div class="pr_desc">
         <p>{{ \Illuminate\Support\Str::limit($product->short_description, 120) }}</p>

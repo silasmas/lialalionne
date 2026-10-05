@@ -1,10 +1,13 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>{{ $title ?? 'Lialalionne — Soins corporels' }}</title>
 @isset($metaDescription)
   <meta name="description" content="{{ $metaDescription }}">
 @endisset
+@include('layouts.partials.seo-meta')
+@include('layouts.partials.meta-pixel')
 
 <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('assets/favicon-32.png') }}">
 <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('assets/favicon-192.png') }}">
@@ -206,14 +209,62 @@
     }
 
     .quantity .lw-action.minus,
-    .quantity .lw-action.plus {
-      width: auto;
-      min-width: 2.25rem;
+    .quantity .lw-action.plus,
+    .quantity button.minus,
+    .quantity button.plus {
+      background-color: #eee;
+      display: block;
+      float: left;
+      border-radius: 50px;
+      cursor: pointer;
+      border: 0;
+      padding: 0;
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      line-height: 34px;
+      text-align: center;
+      font-size: 20px;
+      margin: 4px;
+      color: #292b2c;
+      gap: 0;
+    }
+
+    .quantity .lw-action.minus .lw-action__content,
+    .quantity .lw-action.plus .lw-action__content {
+      line-height: 1;
+    }
+
+    .quantity .lw-action.minus .lw-spinner,
+    .quantity .lw-action.plus .lw-spinner {
+      width: 0.85rem;
+      height: 0.85rem;
+    }
+
+    .shop_cart_table .product-remove .lw-action {
+      color: #292b2c;
+      font-size: 18px;
+      line-height: 1;
       padding: 0;
       border: 0;
       background: transparent;
-      font: inherit;
-      color: inherit;
+      min-width: auto;
+    }
+
+    .shop_cart_table .product-remove .lw-action:hover {
+      color: #C5A059;
+    }
+
+    .shop_cart_table .btn.lw-action,
+    .shop_cart_table button.btn.lw-action {
+      display: inline-flex;
+    }
+
+    button.btn.btn-sm,
+    a.btn.btn-sm,
+    .btn.btn-sm {
+      padding: 8px 20px !important;
+      font-size: 12px;
     }
 
     .cookie-consent {
@@ -426,6 +477,25 @@
 
     .btn-border-fill:hover,
     .btn-border-fill:focus {
+      background-color: #000000 !important;
+      border-color: #000000 !important;
+      color: #ffffff !important;
+    }
+
+    .btn-line-fill {
+      background-color: transparent !important;
+      border: 1px solid #000000 !important;
+      color: #000000 !important;
+      overflow: hidden;
+    }
+
+    .btn-line-fill::before,
+    .btn-line-fill::after {
+      display: none !important;
+    }
+
+    .btn-line-fill:hover,
+    .btn-line-fill:focus {
       background-color: #000000 !important;
       border-color: #000000 !important;
       color: #ffffff !important;
@@ -827,6 +897,52 @@
       .cookie-consent__actions .cookie-consent__btn {
         flex: 1 1 auto;
       }
+    }
+
+    .banner_section .carousel-item.banner_slide_video {
+      position: relative;
+      overflow: hidden;
+      background: #111;
+    }
+
+    .banner_section .banner_slide_video_el {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+    }
+
+    .banner_section .carousel-item.banner_slide_video::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.35);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .banner_section .carousel-item.banner_slide_video .banner_slide_content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .attr-nav .account_dropdown_box {
+      min-width: 200px;
+      padding: 0.25rem 0;
+    }
+
+    .single_banner img,
+    .shop_banner .banner_img img,
+    .trading_img img {
+      width: 100%;
+      object-fit: cover;
+    }
+
+    .trading_img img {
+      max-height: 420px;
+      object-fit: contain;
     }
   </style>
 @livewireStyles

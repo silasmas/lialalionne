@@ -12,6 +12,7 @@ use App\Services\CartService;
 use App\Services\CouponService;
 use App\Services\CurrencyService;
 use App\Services\FlexPayService;
+use App\Services\LoyaltyService;
 use App\Services\MobileMoneyService;
 use App\Services\OrderService;
 use App\Services\PaymentService;
@@ -78,6 +79,10 @@ class CheckoutPage extends Component
   public ?string $appliedCouponCode = null;
 
   public ?string $appliedCouponLabel = null;
+
+  public bool $useLoyaltyPoints = false;
+
+  public int $loyaltyPointsToRedeem = 0;
 
   public string $checkoutPhase = 'form';
 
@@ -162,7 +167,25 @@ class CheckoutPage extends Component
     }
 
     $this->subtotalEur = $cart->subtotal();
+    $this->restoreRememberedCoupon();
     $this->recalculateTotals($shippingService, $currencyService);
+  }
+
+  /**
+   * Reprend un code promo déjà appliqué sur le panier.
+   *
+   * @return void
+   */
+  private function restoreRememberedCoupon(): void
+  {
+    $remembered = app(CouponService::class)->rememberedCode();
+
+    if (!$remembered) {
+      return;
+    }
+
+    $this->couponCode = $remembered;
+    $this->appliedCouponCode = $remembered;
   }
 
   /**
@@ -356,6 +379,24 @@ class CheckoutPage extends Component
     }
 
     return null;
+  }
+
+  /**
+   * Nom affiché sur la commande (prénom ou partie locale de l'e-mail).
+   *
+   * @return string Nom à enregistrer
+   */
+  private function guestDisplayName(): string
+  {
+    $firstName = trim($this->firstName);
+
+    if ($firstName !== '') {
+      return $firstName;
+    }
+
+    $localPart = strstr($this->email, '@', true);
+
+    return is_string($localPart) && $localPart !== '' ? $localPart : 'Client';
   }
 
   /**
@@ -569,13 +610,16 @@ class CheckoutPage extends Component
       $coupon = $couponService->validateForCheckout(
         $this->couponCode,
         $this->subtotalEur,
-        Auth::user()
+        Auth::user(),
+        $this->email !== '' ? $this->email : null
       );
 
       $this->appliedCouponCode = $coupon->code;
       $this->appliedCouponLabel = $coupon->name;
       $this->couponCode = $coupon->code;
       $this->discountEur = $couponService->calculateDiscountEur($coupon, $this->subtotalEur);
+      $this->useLoyaltyPoints = false;
+      $couponService->rememberAppliedCode($coupon->code);
       $this->recalculateTotals($shippingService, $currencyService);
       $this->dispatchShopToast('Code promo « ' . $coupon->code . ' » appliqué.', 'success');
     } catch (ValidationException $exception) {
@@ -605,7 +649,28 @@ class CheckoutPage extends Component
     $this->appliedCouponCode = null;
     $this->appliedCouponLabel = null;
     $this->discountEur = 0;
+    app(CouponService::class)->forgetRememberedCode();
     $this->resetValidation('couponCode');
+    $this->recalculateTotals($shippingService, $currencyService);
+  }
+
+  /**
+   * Active/désactive l'utilisation des points de fidélité comme réduction.
+   * Un seul type de remise à la fois : active la carte cadeau désactive tout
+   * code promo appliqué, et inversement.
+   *
+   * @param ShippingService $shippingService Service livraison
+   * @param CurrencyService $currencyService Service devises
+   * @return void
+   */
+  public function toggleLoyaltyPoints(ShippingService $shippingService, CurrencyService $currencyService): void
+  {
+    if ($this->useLoyaltyPoints) {
+      $this->couponCode = '';
+      $this->appliedCouponCode = null;
+      $this->appliedCouponLabel = null;
+    }
+
     $this->recalculateTotals($shippingService, $currencyService);
   }
 
@@ -623,7 +688,8 @@ class CheckoutPage extends Component
         $coupon = app(CouponService::class)->validateForCheckout(
           $this->appliedCouponCode,
           $this->subtotalEur,
-          Auth::user()
+          Auth::user(),
+          $this->email !== '' ? $this->email : null
         );
         $this->discountEur = app(CouponService::class)->calculateDiscountEur($coupon, $this->subtotalEur);
         $this->appliedCouponLabel = $coupon->name;
@@ -632,9 +698,15 @@ class CheckoutPage extends Component
         $this->appliedCouponLabel = null;
         $this->discountEur = 0;
         $this->couponCode = '';
+        app(CouponService::class)->forgetRememberedCode();
       }
+    } elseif ($this->useLoyaltyPoints && Auth::check()) {
+      $loyaltyService = app(LoyaltyService::class);
+      $this->loyaltyPointsToRedeem = $loyaltyService->maxRedeemablePoints(Auth::user(), $this->subtotalEur);
+      $this->discountEur = $loyaltyService->eurValueOfPoints($this->loyaltyPointsToRedeem);
     } else {
       $this->discountEur = 0;
+      $this->loyaltyPointsToRedeem = 0;
     }
 
     $this->subtotal = $currencyService->convertFromEur($this->subtotalEur, $this->currency);
@@ -687,10 +759,10 @@ class CheckoutPage extends Component
     $currencyValues = implode(',', $currencyService->availableCurrencies());
 
     $rules = [
-      'firstName' => ['required', 'string', 'max:255'],
-      'lastName' => ['required', 'string', 'max:255'],
+      'firstName' => ['nullable', 'string', 'max:255'],
+      'lastName' => ['nullable', 'string', 'max:255'],
       'email' => ['required', 'email', 'max:255'],
-      'phone' => ['required', 'string', 'max:20'],
+      'phone' => ['required', 'string', 'max:20', 'regex:/^\+?[0-9][0-9\s\-]{7,19}$/'],
       'fulfillmentType' => ['required', 'in:delivery,pickup'],
       'notes' => ['nullable', 'string', 'max:1000'],
       'paymentMethod' => ['required', 'in:' . implode(',', $enabledValues)],
@@ -716,11 +788,10 @@ class CheckoutPage extends Component
     }
 
     $messages = [
-      'firstName.required' => 'Le prénom est obligatoire.',
-      'lastName.required' => 'Le nom est obligatoire.',
       'email.required' => 'L\'adresse e-mail est obligatoire.',
       'email.email' => 'L\'adresse e-mail n\'est pas valide.',
       'phone.required' => 'Le numéro de téléphone est obligatoire.',
+      'phone.regex' => 'Format de téléphone invalide.',
       'addressLine1.required' => 'L\'adresse est obligatoire.',
       'city.required' => 'La ville est obligatoire.',
       'postalCode.required' => 'Le code postal est obligatoire.',
@@ -812,10 +883,12 @@ class CheckoutPage extends Component
         ? 0
         : $shippingService->calculate($this->subtotalEur, $this->country, $this->shippingRateId);
 
+      $guestName = $this->guestDisplayName();
+
       $order = $orderService->createFromCheckout($cart, [
         'user_id' => Auth::id(),
-        'first_name' => $this->firstName,
-        'last_name' => $this->lastName,
+        'first_name' => $guestName,
+        'last_name' => trim($this->lastName),
         'phone' => $this->phone,
         'address_line_1' => $this->addressLine1,
         'address_line_2' => $this->addressLine2,
@@ -830,9 +903,13 @@ class CheckoutPage extends Component
         'customer_email' => $this->email,
         'notes' => $this->notes ?: null,
         'coupon_code' => $this->appliedCouponCode,
+        'discount_amount' => $this->discountEur,
+        'loyalty_points_redeemed' => $this->useLoyaltyPoints ? $this->loyaltyPointsToRedeem : 0,
         'mobile_money_operator' => $mobileMoneyOperator,
         'mobile_money_phone' => $mobileMoneyPhone,
       ]);
+
+      app(CouponService::class)->forgetRememberedCode();
 
       $result = $paymentService->initiate($order);
 
@@ -890,7 +967,8 @@ class CheckoutPage extends Component
     SiteSettingsService $settings,
     CurrencyService $currencyService,
     CartService $cartService,
-    FlexPayService $flexPayService
+    FlexPayService $flexPayService,
+    LoyaltyService $loyaltyService
   ) {
     $shippingRates = $this->fulfillmentType === 'pickup'
       ? collect()
@@ -922,8 +1000,11 @@ class CheckoutPage extends Component
       'pendingOrder' => $pendingOrder,
       'livePaymentEnabled' => $flexPayService->isConfigured(),
       'mobileMoneyOperatorLabel' => $operator?->label() ?? 'Mobile Money',
+      'loyaltyBalance' => $loyaltyService->balance(Auth::user()),
+      'loyaltyBalanceValueEur' => $loyaltyService->eurValueOfPoints($loyaltyService->balance(Auth::user())),
     ])->layout('layouts.shopwise', [
       'title' => 'Checkout — Lialalionne',
+      'noindex' => true,
     ]);
   }
 }

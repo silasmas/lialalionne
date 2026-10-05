@@ -32,7 +32,8 @@ class OrderService
     private readonly StockService $stockService,
     private readonly CartService $cartService,
     private readonly CurrencyService $currencyService,
-    private readonly CouponService $couponService
+    private readonly CouponService $couponService,
+    private readonly LoyaltyService $loyaltyService
   ) {
   }
 
@@ -80,7 +81,8 @@ class OrderService
         $coupon = $this->couponService->validateForCheckout(
           (string) $data['coupon_code'],
           $subtotalEur,
-          $user
+          $user,
+          isset($data['customer_email']) ? (string) $data['customer_email'] : null
         );
         $discountEur = $this->couponService->calculateDiscountEur($coupon, $subtotalEur);
         $couponCode = $coupon->code;
@@ -94,6 +96,15 @@ class OrderService
       $taxAmount = $this->currencyService->convertFromEur($taxEur, $currency);
       $total = max(0, $subtotal + $shippingAmount + $taxAmount - $discountAmount);
 
+      $loyaltyPointsRedeemed = max(0, (int) ($data['loyalty_points_redeemed'] ?? 0));
+
+      if ($loyaltyPointsRedeemed > 0 && $user) {
+        $maxRedeemable = $this->loyaltyService->maxRedeemablePoints($user, $subtotalEur);
+        $loyaltyPointsRedeemed = min($loyaltyPointsRedeemed, $maxRedeemable);
+      } else {
+        $loyaltyPointsRedeemed = 0;
+      }
+
       $order = Order::query()->create([
         'order_number' => $this->generateOrderNumber(),
         'user_id' => $userId,
@@ -103,6 +114,7 @@ class OrderService
         'subtotal' => $subtotal,
         'shipping_amount' => $shippingAmount,
         'discount_amount' => $discountAmount,
+        'loyalty_points_redeemed' => $loyaltyPointsRedeemed,
         'tax_amount' => $taxAmount,
         'total' => $total,
         'currency' => $currency,
@@ -110,6 +122,10 @@ class OrderService
         'coupon_id' => $coupon?->id,
         'coupon_code' => $couponCode,
       ]);
+
+      if ($loyaltyPointsRedeemed > 0 && $user) {
+        $this->loyaltyService->redeemForOrder($user, $order, $loyaltyPointsRedeemed);
+      }
 
       if ($coupon instanceof Coupon) {
         $this->couponService->recordUsage($coupon);
@@ -152,7 +168,9 @@ class OrderService
         'amount' => $total,
         'currency' => $currency,
         'metadata' => array_filter([
-          'customer_email' => $data['customer_email'] ?? null,
+          'customer_email' => isset($data['customer_email'])
+            ? strtolower(trim((string) $data['customer_email']))
+            : null,
           'shipping_rate_id' => $data['shipping_rate_id'] ?? null,
           'fulfillment_type' => $fulfillmentType,
           'rate_eur' => $this->currencyService->getRateFromEur($currency),
@@ -217,6 +235,63 @@ class OrderService
       }
 
       $order = $order->fresh(['items', 'addresses', 'payment', 'user']);
+
+      $this->loyaltyService->earnForOrder($order);
+
+      OrderPlaced::dispatch($order);
+
+      return $order;
+    });
+  }
+
+  /**
+   * Accepte une commande en paiement à la livraison (aucun encaissement en
+   * ligne) : la commande passe en préparation, le paiement reste en attente
+   * jusqu'à l'encaissement manuel par l'admin à la livraison.
+   *
+   * @param Order $order Commande à accepter
+   * @return Order Commande mise à jour
+   */
+  public function acceptCashOnDelivery(Order $order): Order
+  {
+    if ($order->status !== OrderStatus::Pending) {
+      return $order->fresh(['items', 'addresses', 'payment']);
+    }
+
+    return DB::transaction(function () use ($order) {
+      $order->load('items.product', 'items.variant');
+
+      foreach ($order->items as $item) {
+        $product = $item->product;
+
+        if (!$product) {
+          continue;
+        }
+
+        $this->stockService->decrement($product, $item->quantity, $item->variant);
+      }
+
+      $order->update(['status' => OrderStatus::Processing]);
+
+      $order->payment?->update([
+        'transaction_id' => 'cod_' . $order->order_number,
+        'metadata' => array_merge($order->payment->metadata ?? [], [
+          'confirmed_via' => 'cash_on_delivery',
+        ]),
+      ]);
+
+      $cart = Cart::query()
+        ->when($order->user_id, fn ($q) => $q->where('user_id', $order->user_id))
+        ->when(!$order->user_id, fn ($q) => $q->where('session_id', session()->getId()))
+        ->first();
+
+      if ($cart) {
+        $this->cartService->clear($cart);
+      }
+
+      $order = $order->fresh(['items', 'addresses', 'payment', 'user']);
+
+      $this->loyaltyService->earnForOrder($order);
 
       OrderPlaced::dispatch($order);
 

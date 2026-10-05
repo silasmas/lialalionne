@@ -53,6 +53,7 @@ class ComparePage extends Component
       'compareProducts' => $compareService->products(),
     ])->layout('layouts.shopwise', [
       'title' => 'Comparer — Lialalionne',
+      'noindex' => true,
     ]);
   }
 }

@@ -4,6 +4,7 @@ namespace App\Livewire\Account;
 
 use App\Livewire\Shop\Concerns\DispatchesShopToast;
 use App\Services\CurrencyService;
+use App\Services\LoyaltyService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -23,6 +24,8 @@ class DashboardPage extends Component
   public string $deliveryPostalCode = '';
 
   public string $deliveryCountry = 'CD';
+
+  public string $deleteConfirmationText = '';
 
   /**
    * Charge l'adresse de livraison enregistrée dans le profil.
@@ -128,12 +131,100 @@ class DashboardPage extends Component
   }
 
   /**
+   * Exporte toutes les données personnelles du client (droit d'accès RGPD).
+   *
+   * @return \Symfony\Component\HttpFoundation\StreamedResponse Téléchargement JSON
+   */
+  public function exportData()
+  {
+    $user = Auth::user()->load([
+      'orders.items',
+      'orders.address',
+      'favoriteProducts:id,name,slug',
+    ]);
+
+    $data = [
+      'compte' => [
+        'nom' => $user->name,
+        'email' => $user->email,
+        'telephone' => $user->phone,
+        'cree_le' => $user->created_at?->toIso8601String(),
+      ],
+      'adresse_livraison' => [
+        'ligne_1' => $user->delivery_address_line_1,
+        'ligne_2' => $user->delivery_address_line_2,
+        'ville' => $user->delivery_city,
+        'code_postal' => $user->delivery_postal_code,
+        'pays' => $user->delivery_country,
+      ],
+      'commandes' => $user->orders->map(fn ($order) => [
+        'numero' => $order->order_number,
+        'statut' => $order->status?->value,
+        'total' => (string) $order->total,
+        'devise' => $order->currency,
+        'passee_le' => $order->created_at?->toIso8601String(),
+        'articles' => $order->items->map(fn ($item) => [
+          'produit' => $item->product_name,
+          'variante' => $item->variant_name,
+          'quantite' => $item->quantity,
+          'prix_unitaire' => (string) $item->unit_price,
+        ])->all(),
+      ])->all(),
+      'favoris' => $user->favoriteProducts->pluck('name')->all(),
+      'exporte_le' => now()->toIso8601String(),
+    ];
+
+    $filename = 'mes-donnees-lialalionne-' . now()->format('Y-m-d') . '.json';
+
+    return response()->streamDownload(function () use ($data) {
+      echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }, $filename, ['Content-Type' => 'application/json']);
+  }
+
+  /**
+   * Efface l'erreur de validation du champ de confirmation de suppression.
+   *
+   * @return void
+   */
+  public function updatedDeleteConfirmationText(): void
+  {
+    $this->resetValidation('deleteConfirmationText');
+  }
+
+  /**
+   * Supprime définitivement le compte client (droit à l'effacement RGPD).
+   * Les commandes déjà passées sont conservées (obligation comptable) mais
+   * détachées du compte ; les favoris et le panier sont supprimés.
+   *
+   * @return \Illuminate\Http\RedirectResponse Redirection accueil
+   */
+  public function deleteAccount()
+  {
+    $this->validate([
+      'deleteConfirmationText' => ['required', 'in:SUPPRIMER'],
+    ], [
+      'deleteConfirmationText.in' => 'Tapez SUPPRIMER en majuscules pour confirmer.',
+    ], [
+      'deleteConfirmationText' => 'confirmation',
+    ]);
+
+    $user = Auth::user();
+    Auth::logout();
+    $user->delete();
+
+    session()->invalidate();
+    session()->regenerateToken();
+
+    return redirect()->route('home');
+  }
+
+  /**
    * Rendu du dashboard client.
    *
    * @param CurrencyService $currencyService Service devises
    * @return \Illuminate\View\View Vue Livewire
    */
-  public function render(CurrencyService $currencyService)
+  public function render(CurrencyService $currencyService, LoyaltyService $loyaltyService)
   {
     $user = Auth::user();
     $recentOrders = $user->orders()
@@ -146,8 +237,11 @@ class DashboardPage extends Component
       'user' => $user,
       'recentOrders' => $recentOrders,
       'currencyService' => $currencyService,
+      'loyaltyBalance' => $loyaltyService->balance($user),
+      'loyaltyBalanceValueEur' => $loyaltyService->eurValueOfPoints($loyaltyService->balance($user)),
     ])->layout('layouts.shopwise', [
       'title' => 'Mon compte — Lialalionne',
+      'noindex' => true,
     ]);
   }
 }

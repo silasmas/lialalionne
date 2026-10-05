@@ -30,6 +30,9 @@ class ProductCatalog extends Component
   #[Url(as: 'vue', history: true, keep: true)]
   public string $viewMode = 'grid';
 
+  #[Url(as: 'selection')]
+  public string $selection = '';
+
   /**
    * Restaure le mode d'affichage depuis la session si besoin.
    *
@@ -98,6 +101,18 @@ class ProductCatalog extends Component
     $this->search = '';
     $this->categoryId = null;
     $this->sort = 'featured';
+    $this->selection = '';
+    $this->resetPage();
+  }
+
+  /**
+   * Réinitialise la pagination quand la sélection merchandising change.
+   *
+   * @return void
+   */
+  public function updatedSelection(): void
+  {
+    $this->selection = $this->normalizeSelection($this->selection);
     $this->resetPage();
   }
 
@@ -135,28 +150,73 @@ class ProductCatalog extends Component
   }
 
   /**
+   * Normalise le filtre merchandising (nouveautés, offres, tendances).
+   *
+   * @param string $selection Filtre demandé
+   * @return string Filtre valide ou chaîne vide
+   */
+  private function normalizeSelection(string $selection): string
+  {
+    return in_array($selection, ['nouveautes', 'offres', 'tendances', 'collection'], true)
+      ? $selection
+      : '';
+  }
+
+  /**
+   * Applique le filtre merchandising sur une requête catalogue.
+   *
+   * @param \Illuminate\Database\Eloquent\Builder<Product> $query Requête produits
+   * @return void
+   */
+  private function applySelectionFilter($query): void
+  {
+    match ($this->normalizeSelection($this->selection)) {
+      'nouveautes', 'collection' => $query->where('is_new', true),
+      'offres' => $query->whereNotNull('compare_at_price')->whereColumn('compare_at_price', '>', 'price'),
+      'tendances' => $query->where('is_seasonal', true),
+      default => null,
+    };
+  }
+
+  /**
    * Construit la requête produits filtrée et triée.
    *
    * @return \Illuminate\Database\Eloquent\Builder<Product>
    */
   private function buildQuery()
   {
-    $query = Product::query()
-      ->where('is_active', true)
-      ->with(['category', 'images', 'variants']);
+    $categoryId = $this->categoryId;
 
     if ($this->search !== '') {
-      $term = '%' . $this->search . '%';
-      $query->where(function ($builder) use ($term) {
+      // Recherche structurée (Scout, moteur "database") : correspondance
+      // plein texte sur nom/description + préfixe sur le SKU. Les mêmes
+      // filtres et eager-loads que la navigation classique sont injectés via
+      // query() pour garder un comportement identique en dehors du texte.
+      $query = Product::search($this->search)->query(function ($builder) use ($categoryId) {
         $builder
-          ->where('name', 'like', $term)
-          ->orWhere('short_description', 'like', $term)
-          ->orWhere('sku', 'like', $term);
-      });
-    }
+          ->where('is_active', true)
+          ->with(['category', 'images', 'variants'])
+          ->withAvg('approvedReviews as reviews_avg_rating', 'rating')
+          ->withCount('approvedReviews as reviews_count');
 
-    if ($this->categoryId) {
-      $query->where('category_id', $this->categoryId);
+        if ($categoryId) {
+          $builder->where('category_id', $categoryId);
+        }
+
+        $this->applySelectionFilter($builder);
+      });
+    } else {
+      $query = Product::query()
+        ->where('is_active', true)
+        ->with(['category', 'images', 'variants'])
+        ->withAvg('approvedReviews as reviews_avg_rating', 'rating')
+        ->withCount('approvedReviews as reviews_count');
+
+      if ($categoryId) {
+        $query->where('category_id', $categoryId);
+      }
+
+      $this->applySelectionFilter($query);
     }
 
     return match ($this->sort) {
@@ -186,11 +246,42 @@ class ProductCatalog extends Component
       ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
       ->get();
 
+    $activeCategory = $this->categoryId
+      ? $categories->firstWhere('id', $this->categoryId)
+      : null;
+
+    $selection = $this->normalizeSelection($this->selection);
+
+    $newCollectionProducts = Product::query()
+      ->active()
+      ->newArrivals()
+      ->with('images')
+      ->limit(8)
+      ->get();
+
+    $newCollectionBanner = $newCollectionProducts->first();
+    $newCollectionDiscountPercent = Product::maxDiscountPercent($newCollectionProducts);
+
+    $title = match (true) {
+      $this->search !== '' => "Recherche « {$this->search} » — Boutique Lialalionne",
+      $selection === 'nouveautes', $selection === 'collection' => 'Nouvelle collection — Boutique Lialalionne',
+      $selection === 'offres' => 'Offres spéciales — Boutique Lialalionne',
+      $selection === 'tendances' => 'Tendances de saison — Boutique Lialalionne',
+      $activeCategory !== null => $activeCategory->name . ' — Boutique Lialalionne',
+      default => 'Boutique — Lialalionne',
+    };
+
+    $description = $activeCategory?->description
+      ?? 'Découvrez tous les soins corporels Lialalionne : fessier, ventre plat, corps. Livraison à Kinshasa et en RDC, paiement Mobile Money.';
+
     return view('livewire.shop.product-catalog', [
       'products' => $products,
       'categories' => $categories,
+      'newCollectionBanner' => $newCollectionBanner,
+      'newCollectionDiscountPercent' => $newCollectionDiscountPercent,
     ])->layout('layouts.shopwise', [
-      'title' => 'Boutique — Lialalionne',
+      'title' => $title,
+      'metaDescription' => \Illuminate\Support\Str::limit($description, 160),
     ]);
   }
 }

@@ -21,6 +21,7 @@
 
 @include('layouts.partials.shopwise.newsletter')
 @include('layouts.partials.shopwise.footer')
+@include('layouts.partials.shopwise.whatsapp-button')
 <x-cookie-consent />
 @include('layouts.partials.shopwise.scripts')
 </body>

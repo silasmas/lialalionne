@@ -116,7 +116,7 @@
           Exécuter les migrations
         </button>
         <button type="button" wire:click.prevent="linkStorage" wire:loading.attr="disabled" class="rounded border border-stone-600 px-4 py-2 text-sm hover:bg-stone-800 disabled:opacity-60">
-          php artisan storage:link
+          Préparer le stockage
         </button>
       </div>
     </section>

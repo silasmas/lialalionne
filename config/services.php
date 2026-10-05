@@ -43,10 +43,25 @@ return [
         'gateway_check' => env('FLEXPAY_GATEWAY_CHECK', 'https://backend.flexpay.cd/api/rest/v1/check'),
     ],
 
+    'callbell' => [
+        'url' => env('CALLBELL_API_URL', 'https://api.callbell.eu/v1'),
+        'token' => env('CALLBELL_API_TOKEN'),
+        'channel_uuid' => env('CALLBELL_CHANNEL_UUID'),
+    ],
+
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'url' => env('ANTHROPIC_API_URL', 'https://api.anthropic.com/v1/messages'),
+    ],
+
     'keccel' => [
         'token' => env('KECCEL_SMS_TOKEN'),
         'sender' => env('KECCEL_SMS_FROM', 'LIALALIONNE'),
         'gateway' => env('KECCEL_SMS_GATEWAY', 'https://api.keccel.com/sms/v2/message.asp'),
+    ],
+
+    'meta_pixel' => [
+        'id' => env('META_PIXEL_ID'),
     ],
 
 ];

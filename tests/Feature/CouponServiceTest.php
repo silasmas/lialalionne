@@ -91,17 +91,17 @@ class CouponServiceTest extends TestCase
   }
 
   /**
-   * Vérifie la limite par utilisateur connecté.
+   * Vérifie qu'un invité peut prévisualiser un code limité par client.
    *
    * @return void
    */
-  public function test_requires_login_when_per_user_limit_set(): void
+  public function test_allows_guest_preview_when_per_user_limit_set(): void
   {
     $this->makeCoupon(['max_uses_per_user' => 1]);
 
-    $this->expectException(ValidationException::class);
+    $coupon = app(CouponService::class)->validateForCheckout('TEST10', 40, null);
 
-    app(CouponService::class)->validateForCheckout('TEST10', 40, null);
+    $this->assertSame('TEST10', $coupon->code);
   }
 
   /**

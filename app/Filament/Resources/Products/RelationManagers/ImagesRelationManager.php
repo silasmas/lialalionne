@@ -41,6 +41,7 @@ class ImagesRelationManager extends RelationManager
           ->label('Image')
           ->image()
           ->required()
+          ->maxSize(5120)
           ->disk('public')
           ->directory('products')
           ->visibility('public'),

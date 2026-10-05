@@ -7,12 +7,7 @@
         </div>
       </div>
       <div class="col-md-6">
-        <div class="newsletter_form">
-          <form action="#" method="post" onsubmit="return false;">
-            <input type="email" required class="form-control rounded-0" placeholder="Votre adresse e-mail">
-            <button type="submit" class="btn btn-dark rounded-0" name="submit" value="Submit">S'abonner</button>
-          </form>
-        </div>
+        <livewire:shop.newsletter-form />
       </div>
     </div>
   </div>

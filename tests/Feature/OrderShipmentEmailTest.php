@@ -62,7 +62,10 @@ class OrderShipmentEmailTest extends TestCase
         && $mail->hasTo('client@example.com');
     });
 
-    $this->assertSame('CD123456789', $order->fresh()->shipment_notified_tracking);
+    $fresh = $order->fresh();
+    $this->assertSame('CD123456789', $fresh->shipment_notified_tracking);
+    $this->assertSame(OrderStatus::Shipped, $fresh->status);
+    $this->assertNotNull($fresh->shipped_at);
   }
 
   /**
@@ -93,5 +96,43 @@ class OrderShipmentEmailTest extends TestCase
     $order->update(['status' => OrderStatus::Delivered]);
 
     Mail::assertNothingSent();
+  }
+
+  /**
+   * Vérifie qu'un nouveau numéro de suivi déclenche un second email.
+   *
+   * @return void
+   */
+  public function testShipmentEmailSentAgainWhenTrackingNumberChanges(): void
+  {
+    Mail::fake();
+
+    $user = User::factory()->create(['email' => 'suivi@example.com']);
+
+    $order = Order::query()->create([
+      'order_number' => 'LL-TEST-SHIP3',
+      'user_id' => $user->id,
+      'status' => OrderStatus::Shipped,
+      'payment_method' => PaymentMethod::Stripe,
+      'subtotal' => 5000,
+      'shipping_amount' => 0,
+      'discount_amount' => 0,
+      'tax_amount' => 0,
+      'total' => 5000,
+      'currency' => 'USD',
+      'fulfillment_type' => 'delivery',
+      'tracking_number' => 'TRACK-001',
+      'shipment_notified_tracking' => 'TRACK-001',
+      'shipped_at' => now()->subDay(),
+    ]);
+
+    $order->update(['tracking_number' => 'TRACK-002']);
+
+    Mail::assertSent(OrderShipmentMail::class, function (OrderShipmentMail $mail) use ($order) {
+      return $mail->order->is($order->fresh())
+        && $mail->hasTo('suivi@example.com');
+    });
+
+    $this->assertSame('TRACK-002', $order->fresh()->shipment_notified_tracking);
   }
 }

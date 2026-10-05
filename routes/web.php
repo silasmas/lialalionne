@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\ConsentController;
 use App\Http\Controllers\FlexPayWebhookController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\LogoutController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\PublicMediaController;
+use App\Http\Controllers\SitemapController;
 use App\Livewire\Account\DashboardPage;
 use App\Livewire\Account\FavoritesPage;
 use App\Livewire\Account\LoginPage;
@@ -28,6 +30,27 @@ Route::get('/media/{path}', [PublicMediaController::class, 'show'])
   ->where('path', '.*')
   ->name('media.show');
 
+Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
+
+Route::get('/robots.txt', function () {
+  $lines = [
+    'User-agent: *',
+    'Disallow: /admin',
+    'Disallow: /mon-compte',
+    'Disallow: /panier',
+    'Disallow: /checkout',
+    'Disallow: /comparer',
+    'Disallow: /commande',
+    'Disallow: /connexion',
+    'Disallow: /inscription',
+    'Disallow: /install',
+    '',
+    'Sitemap: ' . route('sitemap'),
+  ];
+
+  return response(implode("\n", $lines), 200)->header('Content-Type', 'text/plain');
+})->name('robots');
+
 Route::get('/install', [InstallController::class, 'show'])->name('install.setup');
 Route::post('/install/environment', [InstallController::class, 'saveEnvironment'])->name('install.environment');
 Route::post('/install/app-key', [InstallController::class, 'generateAppKey'])->name('install.app-key');
@@ -46,13 +69,18 @@ Route::get('/comparer', ComparePage::class)->name('shop.compare');
 Route::get('/checkout', CheckoutPage::class)->name('shop.checkout');
 Route::get('/commande/succes', OrderConfirmation::class)->name('checkout.success');
 Route::get('/commande/annulation/{order?}', CheckoutCancel::class)->name('checkout.cancel');
-Route::post('/paiement/webhook', PaymentWebhookController::class)->name('payment.webhook');
-Route::post('/paiement/webhook/flexpay', FlexPayWebhookController::class)->name('payment.webhook.flexpay');
-Route::post('/paiement/webhook/mobile-money', FlexPayWebhookController::class)->name('payment.webhook.mobile-money');
+Route::middleware('throttle:60,1')->group(function (): void {
+  Route::post('/paiement/webhook', PaymentWebhookController::class)->name('payment.webhook');
+  Route::post('/paiement/webhook/flexpay', FlexPayWebhookController::class)->name('payment.webhook.flexpay');
+  Route::post('/paiement/webhook/mobile-money', FlexPayWebhookController::class)->name('payment.webhook.mobile-money');
+});
 Route::get('/paiement/mobile-money/{order:order_number}', function (\App\Models\Order $order) {
   return redirect()->route('shop.checkout', ['order' => $order->order_number]);
 })->name('payment.mobile-money');
 Route::get('/produits/{product:slug}', ProductShow::class)->name('products.show');
+Route::post('/rgpd/consent', [ConsentController::class, 'store'])
+  ->middleware('throttle:30,1')
+  ->name('consent.store');
 Route::get('/pages/{page}', LegalPage::class)->name('legal.show');
 
 Route::middleware('guest')->group(function (): void {
@@ -66,4 +94,10 @@ Route::middleware('auth')->group(function (): void {
   Route::get('/mon-compte/favoris', FavoritesPage::class)->name('account.favorites');
   Route::get('/mon-compte/commandes', OrderListPage::class)->name('account.orders');
   Route::get('/mon-compte/commandes/{order}', OrderShowPage::class)->name('account.orders.show');
+});
+
+// Lien de paiement par carte envoyé par le bot WhatsApp (le Mobile Money se fait dans WhatsApp).
+Route::middleware('throttle:30,1')->group(function (): void {
+  Route::get('/payer/{token}', [\App\Http\Controllers\Bot\BotPaymentLinkController::class, 'show'])->name('bot.pay.show');
+  Route::post('/payer/{token}/carte', [\App\Http\Controllers\Bot\BotPaymentLinkController::class, 'card'])->name('bot.pay.card');
 });

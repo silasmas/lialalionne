@@ -19,6 +19,8 @@ class OtpService
 
   private const MAX_ATTEMPTS_PER_HOUR = 5;
 
+  private const MAX_VERIFY_ATTEMPTS = 5;
+
   /**
    * @param KeccelSmsService $keccelSmsService Passerelle SMS Keccel
    */
@@ -44,7 +46,7 @@ class OtpService
       ->where('identifier', $identifier)
       ->where('purpose', $purpose)
       ->whereNull('verified_at')
-      ->delete();
+      ->update(['expires_at' => now()->subSecond()]);
 
     $code = str_pad((string) random_int(0, 999999), self::CODE_LENGTH, '0', STR_PAD_LEFT);
 
@@ -99,6 +101,12 @@ class OtpService
     if (!$otp || !$otp->isValid()) {
       throw ValidationException::withMessages([
         'otp' => 'Code expiré ou invalide. Demandez un nouveau code.',
+      ]);
+    }
+
+    if ($otp->attempts >= self::MAX_VERIFY_ATTEMPTS) {
+      throw ValidationException::withMessages([
+        'otp' => 'Trop de tentatives incorrectes. Demandez un nouveau code.',
       ]);
     }
 

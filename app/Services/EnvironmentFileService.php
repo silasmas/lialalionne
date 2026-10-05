@@ -20,10 +20,24 @@ class EnvironmentFileService
     return [
       'APP_NAME' => ['label' => 'Nom du site', 'type' => 'text', 'placeholder' => 'Lialalionne'],
       'APP_URL' => ['label' => 'URL du site', 'type' => 'url', 'placeholder' => 'http://127.0.0.1:4000'],
-      'APP_ENV' => ['label' => 'Environnement', 'type' => 'text', 'placeholder' => 'local'],
-      'APP_DEBUG' => ['label' => 'Mode debug', 'type' => 'boolean'],
+      'APP_ENV' => [
+        'label' => 'Environnement',
+        'type' => 'text',
+        'placeholder' => 'production',
+        'helper' => 'En production : production (pas local).',
+      ],
+      'APP_DEBUG' => [
+        'label' => 'Mode debug',
+        'type' => 'boolean',
+        'helper' => 'En production : false.',
+      ],
       'DB_CONNECTION' => ['label' => 'Driver BDD', 'type' => 'text', 'placeholder' => 'mysql'],
-      'DB_HOST' => ['label' => 'Hôte BDD', 'type' => 'text', 'placeholder' => '127.0.0.1'],
+      'DB_HOST' => [
+        'label' => 'Hôte BDD',
+        'type' => 'text',
+        'placeholder' => '127.0.0.1',
+        'helper' => 'Utilisez 127.0.0.1 (pas localhost) sur Hostinger / mutualisé.',
+      ],
       'DB_PORT' => ['label' => 'Port BDD', 'type' => 'text', 'placeholder' => '3306'],
       'DB_DATABASE' => ['label' => 'Base de données', 'type' => 'text'],
       'DB_USERNAME' => ['label' => 'Utilisateur BDD', 'type' => 'text'],
@@ -90,6 +104,10 @@ class EnvironmentFileService
         continue;
       }
 
+      if ($key === 'DB_HOST' && is_string($value) && strtolower(trim($value)) === 'localhost') {
+        $value = '127.0.0.1';
+      }
+
       $formatted = $this->formatValue((string) ($value ?? ''));
       $pattern = '/^' . preg_quote($key, '/') . '=.*/';
       $replacement = $key . '=' . $formatted;
@@ -136,7 +154,11 @@ class EnvironmentFileService
    */
   public function hasAppKey(): bool
   {
-    return !empty(env('APP_KEY'));
+    if ((string) config('app.key') !== '') {
+      return true;
+    }
+
+    return !empty($this->parseFile()['APP_KEY'] ?? null);
   }
 
   /**
@@ -146,7 +168,16 @@ class EnvironmentFileService
    */
   public function hasDatabaseConfig(): bool
   {
-    return !empty(env('DB_DATABASE')) && !empty(env('DB_CONNECTION'));
+    $default = (string) config('database.default');
+    $database = (string) config("database.connections.{$default}.database");
+
+    if ($default !== '' && $database !== '') {
+      return true;
+    }
+
+    $parsed = $this->parseFile();
+
+    return !empty($parsed['DB_DATABASE']) && !empty($parsed['DB_CONNECTION']);
   }
 
   /**

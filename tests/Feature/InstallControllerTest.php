@@ -24,6 +24,8 @@ class InstallControllerTest extends TestCase
     $this->get('/install')
       ->assertOk()
       ->assertSee('Installation Lialalionne')
+      ->assertSee('css/minimal-pages.css', false)
+      ->assertDontSee('@vite/client', false)
       ->assertSee('Exécuter les migrations')
       ->assertDontSee('wire:click');
   }

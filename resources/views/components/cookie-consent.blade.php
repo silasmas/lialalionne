@@ -73,9 +73,37 @@
       document.cookie = COOKIE_NAME + '=' + (analytics ? 'all' : 'essential')
         + '; path=/; max-age=' + COOKIE_MAX_AGE + '; SameSite=Lax';
 
+      logConsentServerSide(payload.analytics);
       window.dispatchEvent(new CustomEvent('cookie-consent-updated', { detail: payload }));
 
       return payload;
+    }
+
+    /**
+     * Journalise le consentement côté serveur (preuve RGPD, best-effort).
+     *
+     * @param {boolean} analytics Cookies de mesure d'audience autorisés
+     * @return void
+     */
+    function logConsentServerSide(analytics) {
+      var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+
+      if (!tokenMeta) {
+        return;
+      }
+
+      fetch(@json(route('consent.store')), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': tokenMeta.content,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ analytics: analytics === true }),
+        keepalive: true
+      }).catch(function () {
+        // Best-effort : une échec de journalisation ne doit jamais bloquer le visiteur.
+      });
     }
 
     /**

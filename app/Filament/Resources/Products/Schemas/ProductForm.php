@@ -127,8 +127,27 @@ class ProductForm
             Toggle::make('is_featured')
               ->label('Vedette')
               ->default(false),
+            Toggle::make('is_new')
+              ->label('Nouveauté / nouvelle collection')
+              ->helperText('Affiché dans Nouveautés (accueil) et Nouvelle collection (boutique).')
+              ->default(false),
+            Toggle::make('is_seasonal')
+              ->label('Tendance de saison')
+              ->helperText('Affiché dans le bloc « Nouvelles tendances de saison ».')
+              ->default(false),
           ])
           ->columns(2),
+        Section::make('Gamme')
+          ->description('Chaque produit reste vendable seul. Les liens servent à proposer le reste de la gamme.')
+          ->schema([
+            Select::make('relatedProducts')
+              ->label('Produits de la même gamme')
+              ->relationship('relatedProducts', 'name')
+              ->multiple()
+              ->searchable()
+              ->preload()
+              ->helperText('Sur la fiche produit, le client verra ces articles et pourra les ajouter ensemble.'),
+          ]),
       ]);
   }
 }

@@ -80,10 +80,11 @@
 
             @guest
               <div class="row">
-                <div class="col-lg-6">
+                <div class="col-lg-8">
                   <div class="toggle_info">
                     <span>
                       <i class="fas fa-user"></i>
+                      Pas besoin de compte : indiquez votre e-mail et votre téléphone.
                       Déjà client ?
                       <a href="{{ route('account.login') }}">Connectez-vous ici</a>
                     </span>
@@ -108,17 +109,16 @@
             <div class="row">
               <div class="col-md-6">
                 <div class="heading_s1">
-                  <h4>Informations de facturation</h4>
+                  <h4>Vos coordonnées</h4>
                 </div>
+                <p class="text-muted small mb-3">
+                  @guest
+                    Commandez sans créer de compte. L'e-mail et le téléphone suffisent pour le suivi.
+                  @else
+                    Vérifiez vos informations avant de valider.
+                  @endguest
+                </p>
 
-                <div class="form-group mb-3">
-                  <input type="text" wire:model.live="firstName" class="form-control @error('firstName') is-invalid @enderror" placeholder="Prénom *">
-                  @error('firstName') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                </div>
-                <div class="form-group mb-3">
-                  <input type="text" wire:model.live="lastName" class="form-control @error('lastName') is-invalid @enderror" placeholder="Nom *">
-                  @error('lastName') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                </div>
                 <div class="form-group mb-3">
                   <input type="email" wire:model.live="email" class="form-control @error('email') is-invalid @enderror" placeholder="E-mail *">
                   @error('email') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
@@ -126,6 +126,14 @@
                 <div class="form-group mb-3">
                   <input type="tel" wire:model.live="phone" class="form-control @error('phone') is-invalid @enderror" placeholder="Téléphone *">
                   @error('phone') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                </div>
+                <div class="form-group mb-3">
+                  <input type="text" wire:model.live="firstName" class="form-control @error('firstName') is-invalid @enderror" placeholder="Prénom (optionnel)">
+                  @error('firstName') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                </div>
+                <div class="form-group mb-3">
+                  <input type="text" wire:model.live="lastName" class="form-control @error('lastName') is-invalid @enderror" placeholder="Nom (optionnel)">
+                  @error('lastName') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                 </div>
 
                 <div class="heading_s1 mt-4">
@@ -259,6 +267,30 @@
                     @endif
                     @error('couponCode') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                   </div>
+
+                  @auth
+                    @if ($loyaltyBalance > 0)
+                      <div class="loyalty_form mb-3 p-2 border rounded">
+                        <div class="custome-checkbox">
+                          <input
+                            type="checkbox"
+                            class="form-check-input"
+                            id="useLoyaltyPoints"
+                            wire:model="useLoyaltyPoints"
+                            wire:change="toggleLoyaltyPoints"
+                            {{ $appliedCouponCode ? 'disabled' : '' }}
+                          >
+                          <label class="form-check-label" for="useLoyaltyPoints">
+                            Utiliser mes <strong>{{ $loyaltyBalance }} points</strong> de fidélité
+                            ({{ $currencyService->format($currencyService->convertFromEur($loyaltyBalanceValueEur), $currency) }} de réduction disponible)
+                          </label>
+                        </div>
+                        @if ($appliedCouponCode)
+                          <p class="text-muted small mb-0 mt-1">Un seul type de réduction à la fois : retirez le code promo pour utiliser vos points.</p>
+                        @endif
+                      </div>
+                    @endif
+                  @endauth
 
                   <div class="table-responsive order_table">
                     <table class="table">

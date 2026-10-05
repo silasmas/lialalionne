@@ -41,6 +41,23 @@
 
       <div class="card mt-4">
         <div class="card-header">
+          <h3>Programme de fidélité</h3>
+        </div>
+        <div class="card-body">
+          <p class="mb-1">
+            Solde : <strong>{{ $loyaltyBalance }} points</strong>
+            @if ($loyaltyBalance > 0)
+              (soit {{ $currencyService->format($currencyService->convertFromEur($loyaltyBalanceValueEur)) }} de réduction)
+            @endif
+          </p>
+          <p class="text-muted small mb-0">
+            Vous gagnez 1 point par 1 € dépensé sur chaque commande honorée. 10 points = 1 € de réduction, utilisable au checkout.
+          </p>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
           <h3>Adresse de livraison</h3>
         </div>
         <div class="card-body">
@@ -141,6 +158,54 @@
               </table>
             </div>
           @endif
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
+          <h3>Confidentialité de vos données</h3>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small">
+            Conformément au RGPD, vous pouvez télécharger une copie de vos données personnelles
+            ou demander la suppression définitive de votre compte à tout moment.
+          </p>
+
+          <div class="mb-4">
+            <button type="button" wire:click="exportData" class="btn btn-border-fill btn-sm" wire:loading.attr="disabled">
+              <span wire:loading.remove wire:target="exportData">Télécharger mes données</span>
+              <span wire:loading wire:target="exportData">Préparation…</span>
+            </button>
+          </div>
+
+          <hr>
+
+          <p class="mb-2"><strong>Zone dangereuse</strong></p>
+          <p class="text-muted small">
+            La suppression de votre compte est définitive et immédiate. Vos commandes passées
+            sont conservées (obligation comptable) mais ne seront plus rattachées à un compte.
+            Tapez <strong>SUPPRIMER</strong> ci-dessous pour confirmer.
+          </p>
+          <form
+            wire:submit="deleteAccount"
+            novalidate
+            onsubmit="return confirm('Supprimer définitivement votre compte ? Cette action est irréversible.');"
+          >
+            <div class="form-group mb-3" style="max-width: 260px;">
+              <input
+                type="text"
+                wire:model="deleteConfirmationText"
+                class="form-control @error('deleteConfirmationText') is-invalid @enderror"
+                placeholder="SUPPRIMER"
+                autocomplete="off"
+              >
+              @error('deleteConfirmationText') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+            </div>
+            <button type="submit" class="btn btn-dark btn-sm" wire:loading.attr="disabled">
+              <span wire:loading.remove wire:target="deleteAccount">Supprimer définitivement mon compte</span>
+              <span wire:loading wire:target="deleteAccount">Suppression…</span>
+            </button>
+          </form>
         </div>
       </div>
     </div>

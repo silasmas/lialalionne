@@ -1,3 +1,7 @@
+{{-- Wrapper racine toujours présent : Livewire exige une unique balise racine,
+     même quand il n'y a aucun produit vedette à afficher (sinon la page
+     d'accueil entière plante avec une erreur 500). --}}
+<div>
 @if ($products->isNotEmpty())
   {{-- Modale d'accueil inspirée du template Shopwise (subscribe_popup), personnalisée Lialalionne --}}
   <div
@@ -126,3 +130,4 @@
     </div>
   </div>
 @endif
+</div>

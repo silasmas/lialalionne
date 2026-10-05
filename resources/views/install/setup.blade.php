@@ -91,6 +91,9 @@
                 autocomplete="off"
               >
             @endif
+            @if (!empty($meta['helper']))
+              <p class="mt-1 text-xs text-stone-500">{{ $meta['helper'] }}</p>
+            @endif
           </div>
         @endforeach
         <div class="sm:col-span-2 mt-2 flex flex-wrap gap-2">
@@ -116,6 +119,7 @@
         @else
           {{ count($status['pending_migrations']) }}
         @endif
+        — les images sont servies via <code>/media</code> (le symlink n'est pas obligatoire).
       </p>
       <div class="flex flex-wrap gap-2">
         <form method="POST" action="{{ route('install.migrate') }}">
@@ -127,7 +131,7 @@
         <form method="POST" action="{{ route('install.storage-link') }}">
           @csrf
           <button type="submit" class="rounded border border-stone-600 px-4 py-2 text-sm hover:bg-stone-800">
-            php artisan storage:link
+            Préparer le stockage
           </button>
         </form>
       </div>

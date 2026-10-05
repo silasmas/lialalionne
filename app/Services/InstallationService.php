@@ -14,6 +14,13 @@ use Throwable;
 class InstallationService
 {
   /**
+   * Cache du dernier test de connexion dans la requête courante.
+   */
+  private ?string $cachedConnectionError = null;
+
+  private bool $connectionChecked = false;
+
+  /**
    * @param EnvironmentFileService $environment Service .env
    */
   public function __construct(
@@ -69,23 +76,46 @@ class InstallationService
   /**
    * Retourne le message d'erreur connexion BDD ou null si OK.
    *
+   * @param bool $forceIgnoreCache Force un nouveau test (après changement .env)
    * @return string|null Message d'erreur
    */
-  public function databaseConnectionError(): ?string
+  public function databaseConnectionError(bool $forceIgnoreCache = false): ?string
   {
+    if ($this->connectionChecked && !$forceIgnoreCache) {
+      return $this->cachedConnectionError;
+    }
+
+    $this->connectionChecked = true;
+
     if (!$this->environment->hasDatabaseConfig()) {
-      return 'DB_DATABASE ou DB_CONNECTION manquant dans le .env.';
+      $this->cachedConnectionError = 'DB_DATABASE ou DB_CONNECTION manquant dans le .env.';
+
+      return $this->cachedConnectionError;
     }
 
     try {
-      DB::purge();
-      DB::reconnect();
       DB::connection()->getPdo();
+      DB::select('select 1');
+
+      $this->cachedConnectionError = null;
 
       return null;
     } catch (Throwable $exception) {
-      return $exception->getMessage();
+      $this->cachedConnectionError = $this->humanizeConnectionError($exception->getMessage());
+
+      return $this->cachedConnectionError;
     }
+  }
+
+  /**
+   * Invalide le cache de test BDD (après écriture .env / reconnect).
+   *
+   * @return void
+   */
+  public function forgetConnectionCache(): void
+  {
+    $this->connectionChecked = false;
+    $this->cachedConnectionError = null;
   }
 
   /**
@@ -158,13 +188,24 @@ class InstallationService
   }
 
   /**
-   * Indique si le lien symbolique storage est actif.
+   * Indique si le stockage public est utilisable.
    *
-   * @return bool True si public/storage existe
+   * Sur Windows, `storage:link` crée une junction : PHP `is_link()` / `is_dir()`
+   * peuvent renvoyer false alors que le chemin existe. Les fichiers sont de
+   * toute façon servis via /media (PublicMediaController).
+   *
+   * @return bool True si le disque public est prêt
    */
   public function isStorageLinked(): bool
   {
-    return is_link(public_path('storage')) || is_dir(public_path('storage'));
+    $link = public_path('storage');
+    $disk = storage_path('app/public');
+
+    if (is_link($link) || is_dir($link) || (file_exists($link) && !is_file($link))) {
+      return true;
+    }
+
+    return is_dir($disk) && is_writable($disk);
   }
 
   /**
@@ -186,6 +227,41 @@ class InstallationService
       'core_setup_complete' => $this->isCoreSetupComplete(),
       'installed' => $this->isInstalled(),
     ];
+  }
+
+  /**
+   * Transforme une erreur PDO technique en message actionnable.
+   *
+   * @param string $message Message brut
+   * @return string Message clarifié
+   */
+  private function humanizeConnectionError(string $message): string
+  {
+    $host = (string) config('database.connections.' . config('database.default') . '.host', '');
+
+    if (
+      str_contains($message, '2002')
+      || str_contains($message, 'Operation not permitted')
+      || str_contains($message, 'No such file or directory')
+    ) {
+      $hint = 'Sur un hébergement mutualisé, mettez DB_HOST=127.0.0.1 (et non « localhost », qui utilise un socket souvent bloqué).';
+
+      if (strtolower($host) === 'localhost') {
+        return $message . ' — ' . $hint;
+      }
+
+      return $message . ' — Vérifiez DB_HOST / DB_PORT / accès MySQL. ' . $hint;
+    }
+
+    if (str_contains($message, '1045') || str_contains($message, 'Access denied')) {
+      return $message . ' — Identifiants MySQL incorrects (DB_USERNAME / DB_PASSWORD).';
+    }
+
+    if (str_contains($message, '1049') || str_contains($message, 'Unknown database')) {
+      return $message . ' — Le nom de base (DB_DATABASE) est incorrect ou la base n\'existe pas encore.';
+    }
+
+    return $message;
   }
 
   /**

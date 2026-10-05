@@ -42,6 +42,7 @@ class OrderShowPage extends Component
       'currencyService' => $currencyService,
     ])->layout('layouts.shopwise', [
       'title' => 'Commande ' . $this->order->order_number . ' — Lialalionne',
+      'noindex' => true,
     ]);
   }
 }

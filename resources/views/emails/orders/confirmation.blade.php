@@ -3,7 +3,11 @@
 
 Bonjour{{ $order->shippingAddress ? ' ' . $order->shippingAddress->first_name : '' }},
 
+@if ($order->payment_method === \App\Enums\PaymentMethod::Cod)
+Votre commande **{{ $order->order_number }}** a bien été enregistrée. Vous réglerez **{{ $currencyService->format($order->total, $order->currency) }}** en espèces à la livraison.
+@else
 Votre commande **{{ $order->order_number }}** a bien été enregistrée et payée.
+@endif
 
 ## Récapitulatif
 

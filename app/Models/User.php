@@ -26,6 +26,7 @@ use Illuminate\Notifications\Notifiable;
   'delivery_city',
   'delivery_postal_code',
   'delivery_country',
+  'loyalty_points_balance',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, HasName
@@ -44,6 +45,7 @@ class User extends Authenticatable implements FilamentUser, HasName
       'email_verified_at' => 'datetime',
       'password' => 'hashed',
       'is_admin' => 'boolean',
+      'loyalty_points_balance' => 'integer',
     ];
   }
 
@@ -100,6 +102,16 @@ class User extends Authenticatable implements FilamentUser, HasName
   public function cart(): HasOne
   {
     return $this->hasOne(Cart::class);
+  }
+
+  /**
+   * Historique des mouvements de points de fidélité.
+   *
+   * @return HasMany<LoyaltyPointTransaction, $this>
+   */
+  public function loyaltyPointTransactions(): HasMany
+  {
+    return $this->hasMany(LoyaltyPointTransaction::class);
   }
 
   /**

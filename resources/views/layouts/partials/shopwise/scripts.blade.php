@@ -133,12 +133,14 @@
       setTimeout(initShopwiseCarousels, 500);
       setTimeout(initShopwiseProductGallery, 700);
       setTimeout(initFeaturedWelcomePopup, 1200);
+      setTimeout(bindHomeSlideVideos, 400);
     });
 
     document.addEventListener('livewire:navigated', function () {
       setTimeout(initShopwiseCarousels, 300);
       setTimeout(initShopwiseProductGallery, 500);
       setTimeout(initFeaturedWelcomePopup, 800);
+      setTimeout(bindHomeSlideVideos, 200);
     });
 
     /**
@@ -175,6 +177,55 @@
 
       var modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
       modal.show();
+    }
+
+    /**
+     * Joue la vidéo du slide actif et met les autres en pause.
+     *
+     * @return void
+     */
+    function bindHomeSlideVideos() {
+      var carousel = document.getElementById('carouselExampleControls');
+
+      if (!carousel || carousel.dataset.videoBound === '1') {
+        return;
+      }
+
+      var videos = carousel.querySelectorAll('video.banner_slide_video_el');
+
+      if (!videos.length) {
+        return;
+      }
+
+      carousel.dataset.videoBound = '1';
+
+      function pauseAll() {
+        videos.forEach(function (video) {
+          video.pause();
+        });
+      }
+
+      function playActive() {
+        var activeItem = carousel.querySelector('.carousel-item.active');
+        var activeVideo = activeItem ? activeItem.querySelector('video.banner_slide_video_el') : null;
+
+        pauseAll();
+
+        if (!activeVideo) {
+          return;
+        }
+
+        activeVideo.currentTime = 0;
+        var playPromise = activeVideo.play();
+
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(function () {});
+        }
+      }
+
+      carousel.addEventListener('slide.bs.carousel', pauseAll);
+      carousel.addEventListener('slid.bs.carousel', playActive);
+      playActive();
     }
   })();
 </script>

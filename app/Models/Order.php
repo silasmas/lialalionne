@@ -30,9 +30,14 @@ class Order extends Model
     'tax_amount',
     'total',
     'currency',
+    'source',
+    'payment_token',
+    'payment_token_expires_at',
     'notes',
     'coupon_id',
     'coupon_code',
+    'loyalty_points_redeemed',
+    'loyalty_points_earned',
     'tracking_number',
     'shipment_notified_tracking',
     'fulfillment_type',
@@ -55,8 +60,11 @@ class Order extends Model
       'discount_amount' => 'decimal:2',
       'tax_amount' => 'decimal:2',
       'total' => 'decimal:2',
+      'loyalty_points_redeemed' => 'integer',
+      'loyalty_points_earned' => 'integer',
       'shipped_at' => 'datetime',
       'delivered_at' => 'datetime',
+      'payment_token_expires_at' => 'datetime',
     ];
   }
 

@@ -30,6 +30,7 @@ class FavoritesPage extends Component
       'products' => $products,
     ])->layout('layouts.shopwise', [
       'title' => 'Mes favoris — Lialalionne',
+      'noindex' => true,
     ]);
   }
 }

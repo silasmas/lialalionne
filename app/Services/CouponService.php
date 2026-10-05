@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
  */
 class CouponService
 {
+  public const SESSION_KEY = 'shop.applied_coupon_code';
+
   /**
    * Recherche un coupon par code (insensible à la casse).
    *
@@ -39,9 +41,10 @@ class CouponService
    * @param string $code Code promo
    * @param float $subtotalEur Sous-total panier en EUR
    * @param User|null $user Client connecté
+   * @param string|null $email E-mail invité pour la limite par client
    * @return Coupon Coupon validé
    */
-  public function validateForCheckout(string $code, float $subtotalEur, ?User $user = null): Coupon
+  public function validateForCheckout(string $code, float $subtotalEur, ?User $user = null, ?string $email = null): Coupon
   {
     $coupon = $this->findByCode($code);
 
@@ -73,21 +76,16 @@ class CouponService
     }
 
     if ($coupon->max_uses_per_user !== null) {
-      if (!$user) {
-        throw ValidationException::withMessages([
-          'couponCode' => 'Connectez-vous pour utiliser ce code promo.',
-        ]);
-      }
+      $normalizedEmail = $this->normalizeEmail($email ?? $user?->email);
 
-      $userUses = Order::query()
-        ->where('coupon_id', $coupon->id)
-        ->where('user_id', $user->id)
-        ->count();
+      if ($user || $normalizedEmail) {
+        $userUses = $this->countUsesForCustomer($coupon, $user, $normalizedEmail);
 
-      if ($userUses >= $coupon->max_uses_per_user) {
-        throw ValidationException::withMessages([
-          'couponCode' => 'Vous avez déjà utilisé ce code promo le nombre de fois autorisé.',
-        ]);
+        if ($userUses >= $coupon->max_uses_per_user) {
+          throw ValidationException::withMessages([
+            'couponCode' => 'Vous avez déjà utilisé ce code promo le nombre de fois autorisé.',
+          ]);
+        }
       }
     }
 
@@ -148,5 +146,89 @@ class CouponService
 
       $locked->increment('times_used');
     });
+  }
+
+  /**
+   * Mémorise le code promo appliqué pour le panier et le checkout.
+   *
+   * @param string|null $code Code normalisé ou null pour effacer
+   * @return void
+   */
+  public function rememberAppliedCode(?string $code): void
+  {
+    $normalized = Coupon::normalizeCode((string) $code);
+
+    if ($normalized === '') {
+      session()->forget(self::SESSION_KEY);
+
+      return;
+    }
+
+    session([self::SESSION_KEY => $normalized]);
+  }
+
+  /**
+   * Retourne le code promo mémorisé en session.
+   *
+   * @return string|null Code ou null
+   */
+  public function rememberedCode(): ?string
+  {
+    $code = session(self::SESSION_KEY);
+
+    return is_string($code) && $code !== '' ? $code : null;
+  }
+
+  /**
+   * Oublie le code promo mémorisé.
+   *
+   * @return void
+   */
+  public function forgetRememberedCode(): void
+  {
+    session()->forget(self::SESSION_KEY);
+  }
+
+  /**
+   * Compte les commandes déjà passées avec ce coupon pour un client.
+   *
+   * @param Coupon $coupon Code promo
+   * @param User|null $user Client connecté
+   * @param string|null $email E-mail invité normalisé
+   * @return int Nombre d'utilisations
+   */
+  private function countUsesForCustomer(Coupon $coupon, ?User $user, ?string $email): int
+  {
+    if (!$user && !$email) {
+      return 0;
+    }
+
+    return Order::query()
+      ->where('coupon_id', $coupon->id)
+      ->where(function ($query) use ($user, $email): void {
+        if ($user) {
+          $query->orWhere('user_id', $user->id);
+        }
+
+        if ($email) {
+          $query->orWhereHas('payment', function ($payment) use ($email): void {
+            $payment->where('metadata->customer_email', $email);
+          });
+        }
+      })
+      ->count();
+  }
+
+  /**
+   * Normalise une adresse e-mail pour les comparaisons.
+   *
+   * @param string|null $email E-mail saisi
+   * @return string|null E-mail en minuscules ou null
+   */
+  private function normalizeEmail(?string $email): ?string
+  {
+    $normalized = strtolower(trim((string) $email));
+
+    return $normalized !== '' ? $normalized : null;
   }
 }

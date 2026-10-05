@@ -126,7 +126,48 @@
             </div>
           </div>
 
-          <div class="row justify-content-end">
+          <div class="row">
+            <div class="col-md-6 mb-4 mb-md-0">
+              <div class="border p-3 p-md-4">
+                <div class="heading_s1 mb-3">
+                  <h6>Code promo</h6>
+                </div>
+                @if ($appliedCouponCode)
+                  <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded mb-2">
+                    <div>
+                      <strong>{{ $appliedCouponCode }}</strong>
+                      @if ($appliedCouponLabel)
+                        <span class="text-muted small d-block">{{ $appliedCouponLabel }}</span>
+                      @endif
+                    </div>
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0" wire:click="removeCoupon">
+                      Retirer
+                    </button>
+                  </div>
+                @else
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      wire:model="couponCode"
+                      class="form-control @error('couponCode') is-invalid @enderror"
+                      placeholder="Ex. LIALA5"
+                      autocomplete="off"
+                    >
+                    <button
+                      type="button"
+                      class="btn btn-fill-out"
+                      wire:click="applyCoupon"
+                      wire:loading.attr="disabled"
+                      wire:target="applyCoupon"
+                    >
+                      <span wire:loading.remove wire:target="applyCoupon">Appliquer</span>
+                      <span wire:loading wire:target="applyCoupon">…</span>
+                    </button>
+                  </div>
+                @endif
+                @error('couponCode') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+              </div>
+            </div>
             <div class="col-md-6">
               <div class="border p-3 p-md-4">
                 <div class="heading_s1 mb-3">
@@ -139,13 +180,19 @@
                         <td class="cart_total_label">Sous-total</td>
                         <td class="cart_total_amount">{{ $currencyService->formatFromEur($subtotal) }}</td>
                       </tr>
+                      @if ($appliedCouponCode && $discountEur > 0)
+                        <tr>
+                          <td class="cart_total_label">Remise ({{ $appliedCouponCode }})</td>
+                          <td class="cart_total_amount text-success">- {{ $currencyService->formatFromEur($discountEur) }}</td>
+                        </tr>
+                      @endif
                       <tr>
                         <td class="cart_total_label">Livraison</td>
                         <td class="cart_total_amount">Calculée à l'étape suivante</td>
                       </tr>
                       <tr>
                         <td class="cart_total_label">Total estimé</td>
-                        <td class="cart_total_amount"><strong>{{ $currencyService->formatFromEur($subtotal) }}</strong></td>
+                        <td class="cart_total_amount"><strong>{{ $currencyService->formatFromEur($estimatedTotal) }}</strong></td>
                       </tr>
                     </tbody>
                   </table>

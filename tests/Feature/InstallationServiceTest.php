@@ -28,6 +28,14 @@ class InstallationServiceTest extends TestCase
   }
 
   /**
+   * Considère le stockage prêt même si PHP ne voit pas la junction Windows.
+   */
+  public function testStorageIsReadyWhenPublicDiskExists(): void
+  {
+    $this->assertTrue(app(InstallationService::class)->isStorageLinked());
+  }
+
+  /**
    * Redirige vers l'installateur si aucun admin n'existe.
    */
   public function testInstallRouteIsAvailableWhenNotInstalled(): void

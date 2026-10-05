@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\Login;
 use App\Filament\Widgets\LatestOrders;
 use App\Filament\Widgets\LowStockProducts;
 use App\Filament\Widgets\StatsOverview;
@@ -13,6 +14,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -38,7 +40,11 @@ class AdminPanelProvider extends PanelProvider
       ->default()
       ->id('admin')
       ->path('admin')
-      ->login()
+      ->login(Login::class)
+      ->renderHook(
+        PanelsRenderHook::AUTH_LOGIN_FORM_BEFORE,
+        fn (): string => view('filament.hooks.login-feedback')->render(),
+      )
       ->brandName('Lialalionne Admin')
       ->brandLogo(asset('assets/logo.jpeg'))
       ->brandLogoHeight('2.5rem')
@@ -47,8 +53,10 @@ class AdminPanelProvider extends PanelProvider
         'primary' => Color::hex('#C5A059'),
       ])
       ->navigationGroups([
+        'Boutique',
         'Catalogue',
         'Ventes',
+        'Marketing',
         'Paramètres',
       ])
       ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')

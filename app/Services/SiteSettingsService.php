@@ -32,6 +32,8 @@ class SiteSettingsService
     'pickup_in_store_enabled' => true,
     'pickup_store_name' => 'Boutique Lialalionne',
     'pickup_store_address' => 'Kinshasa, RDC — retrait sur place du lundi au samedi.',
+    'whatsapp_number' => null,
+    'whatsapp_button_enabled' => true,
     'coming_soon_enabled' => false,
     'coming_soon_title' => 'Lialalionne arrive bientôt',
     'coming_soon_message' => 'Notre boutique en ligne de soins corporels premium ouvre très prochainement. La puissance d\'une lionne, la peau d\'une reine.',
@@ -127,6 +129,7 @@ class SiteSettingsService
     return match ($method) {
       PaymentMethod::Stripe => (bool) $this->get('payment_card_enabled', true),
       PaymentMethod::MobileMoney => (bool) $this->get('payment_mobile_money_enabled', true),
+      PaymentMethod::Cod => (bool) $this->get('payment_cod_enabled', false),
       default => false,
     };
   }
@@ -146,6 +149,10 @@ class SiteSettingsService
 
     if ($this->isPaymentMethodEnabled(PaymentMethod::MobileMoney)) {
       $methods[] = PaymentMethod::MobileMoney;
+    }
+
+    if ($this->isPaymentMethodEnabled(PaymentMethod::Cod)) {
+      $methods[] = PaymentMethod::Cod;
     }
 
     return $methods;
@@ -195,6 +202,54 @@ class SiteSettingsService
   public function isPickupEnabled(): bool
   {
     return (bool) $this->get('pickup_in_store_enabled', true);
+  }
+
+  /**
+   * Numéro WhatsApp de la boutique au format international sans « + »
+   * (ex. 243812345678), ou null s'il n'est pas renseigné.
+   *
+   * @return string|null Numéro normalisé
+   */
+  public function whatsappNumber(): ?string
+  {
+    $digits = preg_replace('/\D+/', '', (string) $this->get('whatsapp_number', '')) ?? '';
+
+    if ($digits === '') {
+      return null;
+    }
+
+    if (str_starts_with($digits, '0')) {
+      $digits = '243' . substr($digits, 1);
+    }
+
+    return strlen($digits) >= 11 ? $digits : null;
+  }
+
+  /**
+   * Lien wa.me vers la conversation avec la boutique, message pré-rempli.
+   *
+   * @param string|null $text Message proposé à la cliente
+   * @return string|null URL, ou null sans numéro
+   */
+  public function whatsappUrl(?string $text = null): ?string
+  {
+    $number = $this->whatsappNumber();
+
+    if (!$number) {
+      return null;
+    }
+
+    return 'https://wa.me/' . $number . ($text ? '?text=' . rawurlencode($text) : '');
+  }
+
+  /**
+   * Indique si le bouton WhatsApp flottant est affiché sur le site.
+   *
+   * @return bool True si un numéro est renseigné et le bouton activé
+   */
+  public function isWhatsappButtonEnabled(): bool
+  {
+    return $this->whatsappNumber() !== null && (bool) $this->get('whatsapp_button_enabled', true);
   }
 
   /**

@@ -32,6 +32,7 @@ class OrderListPage extends Component
       'currencyService' => $currencyService,
     ])->layout('layouts.shopwise', [
       'title' => 'Mes commandes — Lialalionne',
+      'noindex' => true,
     ]);
   }
 }

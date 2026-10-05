@@ -14,15 +14,21 @@ body {
   line-height: 1.5;
 }
 
+.install-body {
+  background: #000000;
+}
+
 .install-logo {
   display: block;
-  width: 64px;
-  height: 64px;
-  max-height: none;
+  width: 72px;
+  height: 72px;
+  max-width: 72px;
+  max-height: 72px;
   object-fit: cover;
   border-radius: 50%;
   margin-left: auto;
   margin-right: auto;
+  border: 2px solid #c5a059;
 }
 
 .min-h-screen { min-height: 100vh; }
@@ -75,6 +81,12 @@ body {
 .flex-1 { flex: 1 1 0%; }
 .flex-col { flex-direction: column; }
 .shrink-0 { flex-shrink: 0; }
+.block { display: block; }
+.px-5 { padding-left: 1.25rem; padding-right: 1.25rem; }
+.py-2\.5 { padding-top: 0.625rem; padding-bottom: 0.625rem; }
+.tracking-wide { letter-spacing: 0.05em; }
+.bg-green-950\/40 { background-color: rgba(5, 46, 22, 0.45); }
+.text-green-200\/80 { color: rgba(187, 247, 208, 0.85); }
 
 .bg-stone-950 { background-color: #000000; }
 .bg-stone-900 { background-color: #0a0a0a; }
@@ -174,6 +186,8 @@ button:disabled {
   .install-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .install-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .install-form-grid .span-2 { grid-column: span 2 / span 2; }
+  .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sm\:col-span-2 { grid-column: span 2 / span 2; }
 }
 
 @media (min-width: 1024px) {

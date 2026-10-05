@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -90,7 +91,7 @@ class SetupService
   {
     $this->refreshRuntimeConfig();
 
-    $connectionError = $this->installation->databaseConnectionError();
+    $connectionError = $this->installation->databaseConnectionError(forceIgnoreCache: true);
 
     if ($connectionError !== null) {
       return [
@@ -162,26 +163,49 @@ class SetupService
    */
   public function linkStorage(): array
   {
+    $publicDisk = storage_path('app/public');
+
+    if (!is_dir($publicDisk) && !@mkdir($publicDisk, 0755, true) && !is_dir($publicDisk)) {
+      return [
+        'success' => false,
+        'message' => 'Impossible de créer le dossier storage/app/public.',
+      ];
+    }
+
     if ($this->installation->isStorageLinked()) {
       return [
         'success' => true,
-        'message' => 'Le lien storage est déjà actif.',
+        'message' => 'Le stockage public est déjà prêt (fichiers servis via /media).',
       ];
     }
 
     try {
       Artisan::call('storage:link');
-
-      return [
-        'success' => true,
-        'message' => 'Lien storage créé.',
-      ];
     } catch (Throwable $exception) {
+      if ($this->canWriteStorage()) {
+        return [
+          'success' => true,
+          'message' => 'Stockage prêt sans symlink (les fichiers passent par /media).',
+        ];
+      }
+
       return [
         'success' => false,
         'message' => $exception->getMessage(),
       ];
     }
+
+    if ($this->installation->isStorageLinked() || $this->canWriteStorage()) {
+      return [
+        'success' => true,
+        'message' => 'Stockage public prêt.',
+      ];
+    }
+
+    return [
+      'success' => false,
+      'message' => 'Le stockage n\'a pas pu être préparé.',
+    ];
   }
 
   /**
@@ -324,7 +348,53 @@ class SetupService
       //
     }
 
-    DB::purge();
-    DB::reconnect();
+    $this->applyEnvToRuntimeConfig();
+    $this->installation->forgetConnectionCache();
+
+    try {
+      DB::purge();
+      DB::reconnect();
+      DB::connection()->getPdo();
+    } catch (Throwable) {
+      // Le prochain test BDD exposera l'erreur clairement.
+    }
+  }
+
+  /**
+   * Applique les valeurs .env (surtout BDD) à la config PHP courante.
+   *
+   * @return void
+   */
+  private function applyEnvToRuntimeConfig(): void
+  {
+    $values = $this->environment->readEditableValues();
+    $connection = $values['DB_CONNECTION'] ?: 'mysql';
+    $host = $values['DB_HOST'] ?: '127.0.0.1';
+
+    if (strtolower($host) === 'localhost') {
+      $host = '127.0.0.1';
+    }
+
+    Config::set('database.default', $connection);
+    Config::set("database.connections.{$connection}.host", $host);
+    Config::set("database.connections.{$connection}.port", $values['DB_PORT'] ?: '3306');
+    Config::set("database.connections.{$connection}.database", $values['DB_DATABASE'] ?: '');
+    Config::set("database.connections.{$connection}.username", $values['DB_USERNAME'] ?: '');
+
+    if (array_key_exists('DB_PASSWORD', $values) && $values['DB_PASSWORD'] !== null) {
+      Config::set("database.connections.{$connection}.password", $values['DB_PASSWORD']);
+    }
+
+    if (!empty($values['APP_URL'])) {
+      Config::set('app.url', $values['APP_URL']);
+    }
+
+    if (!empty($values['APP_ENV'])) {
+      Config::set('app.env', $values['APP_ENV']);
+    }
+
+    if (array_key_exists('APP_DEBUG', $values) && $values['APP_DEBUG'] !== null) {
+      Config::set('app.debug', filter_var($values['APP_DEBUG'], FILTER_VALIDATE_BOOLEAN));
+    }
   }
 }

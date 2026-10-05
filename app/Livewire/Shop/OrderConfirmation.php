@@ -55,6 +55,7 @@ class OrderConfirmation extends Component
       'currencyService' => $currencyService,
     ])->layout('layouts.shopwise', [
       'title' => 'Commande confirmée — Lialalionne',
+      'noindex' => true,
     ]);
   }
 }

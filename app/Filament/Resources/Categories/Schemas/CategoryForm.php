@@ -47,6 +47,7 @@ class CategoryForm
             FileUpload::make('image')
               ->label('Image')
               ->image()
+              ->maxSize(5120)
               ->disk('public')
               ->directory('categories')
               ->visibility('public'),

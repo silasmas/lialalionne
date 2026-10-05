@@ -171,12 +171,12 @@ ShippingZone ──< ShippingRate
 
 | # | Tâche | Statut |
 |---|-------|--------|
-| 6.1 | Validation stricte (Form Requests) | ⬜ |
+| 6.1 | Validation stricte (règles Livewire renforcées : regex téléphone, mot de passe complexe) | ✅ |
 | 6.2 | Tests PHPUnit (devises, panier, paiement simulé, expédition) | ✅ |
-| 6.3 | SEO (meta, sitemap, slugs) | ⬜ |
-| 6.4 | RGPD (consentement cookies, export) | ⬜ |
+| 6.3 | SEO (meta/OG/Twitter, JSON-LD Product & Organization, sitemap.xml, robots.txt, noindex pages privées) | ✅ |
+| 6.4 | RGPD (bandeau cookies fonctionnel + journalisation serveur, export de données, suppression de compte) | ✅ |
 | 6.5 | CGV, confidentialité, retours | ✅ |
-| 6.6 | Optimisation images (vraies photos produits) | ⬜ |
+| 6.6 | Optimisation images (vraies photos produits) | ✅ |
 
 ---
 
@@ -185,11 +185,51 @@ ShippingZone ──< ShippingRate
 | # | Fonctionnalité | Statut |
 |---|----------------|--------|
 | 7.1 | Codes promo | ✅ |
-| 7.2 | Avis clients | ⏸️ |
-| 7.3 | Newsletter | ⏸️ |
-| 7.4 | Programme fidélité | ⏸️ |
-| 7.5 | Analytics | ⏸️ |
-| 7.6 | Laravel Scout | ⏸️ |
+| 7.2 | Avis clients (soumission + modération admin + note moyenne) | ✅ |
+| 7.3 | Newsletter (inscription + export CSV admin) | ✅ |
+| 7.4 | Programme fidélité (1 pt/€ dépensé, 10 pts = 1 € de réduction) | ✅ |
+| 7.5 | Analytics (Meta Pixel, gated par consentement RGPD) | ✅ |
+| 7.6 | Laravel Scout (recherche full-text MySQL, driver `database`) | ✅ |
+| 7.7 | Paiement à la livraison (COD) | ✅ |
+| 7.8 | Intégration transporteur (API externe) | ⏸️ Pas de partenaire identifié — livraison gérée en interne |
+
+---
+
+## Phase 8 — Sécurité (audit du 2026-08-31)
+
+| # | Constat | Statut |
+|---|---------|--------|
+| 8.1 | **Critique** — webhook FlexPay acceptait tout POST sans vérification (paiement falsifiable) | ✅ Corrigé — re-vérification systématique via l'API FlexPay avant confirmation |
+| 8.2 | OTP : pas de verrou après échecs répétés (brute-force du code 6 chiffres) | ✅ Corrigé — verrouillage après 5 tentatives |
+| 8.3 | Connexion mot de passe sans rate limiting | ✅ Corrigé — 5 tentatives / 60s par email+IP |
+| 8.4 | Aucun rate limiting HTTP sur les actions Livewire (connexion, panier, checkout) | ✅ Corrigé — 120 req/min/IP sur le point d'entrée Livewire |
+| 8.5 | Webhooks paiement sans limite de débit | ✅ Corrigé — 60 req/min/IP |
+| 8.6 | 14 vulnérabilités dans les dépendances composer (guzzle, psr7, commonmark) | ✅ Corrigé — dépendances mises à jour, 0 vulnérabilité restante |
+| 8.7 | 4 vulnérabilités npm (outils de build uniquement) | ✅ Corrigé via `npm audit fix` |
+| 8.8 | Upload Filament sans taille max explicite | ✅ Corrigé — 5 Mo max |
+| 8.9 | Mot de passe inscription : 8 caractères sans complexité | ✅ Corrigé — lettres + chiffres exigés |
+| 8.10 | `SESSION_SECURE_COOKIE` non défini | ✅ Corrigé — à passer à `true` en prod HTTPS |
+| 8.11 | Bug latent : page d'accueil plantait (500) si aucun produit vedette actif | ✅ Corrigé (trouvé pendant les tests) |
+| 8.12 | `APP_DEBUG=true` doit passer à `false` en production | 🔴 Rappel déploiement — non modifiable localement |
+| 8.13 | Emails de production (SMTP réel) | 🔴 Rappel déploiement |
+
+---
+
+## Phase 9 — Bot WhatsApp (conseillère Chez Lia)
+
+| # | Tâche | Statut |
+|---|-------|--------|
+| 9.1 | API bot `/api/bot/*` protégée par clé (`X-Bot-Key`) : catalogue, fiches, routines, infos boutique | ✅ |
+| 9.2 | Clientes reconnues par numéro WhatsApp (tous formats), création de compte à la 1re commande | ✅ |
+| 9.3 | Devis sans création + commande WhatsApp (`source = whatsapp`), remise routine complète configurable | ✅ |
+| 9.4 | Paiement Mobile Money dans WhatsApp (push FlexPay) + lien carte `/payer/{token}` | ✅ |
+| 9.5 | Messages WhatsApp de suivi via Callbell (+ webhook sortant signé optionnel) | ✅ |
+| 9.6 | Conseillère IA (Claude) : `POST /api/bot/v1/dialogue`, outils, mémoire, journal, transfert humain — consignes dans `resources/prompts/bot-chez-lia.md` | ✅ |
+| 9.7 | Bouton WhatsApp flottant + « Commander sur WhatsApp » sur les fiches produits (numéro dans Paramètres › Boutique) | ✅ |
+| 9.8 | Flux Callbell + numéro WhatsApp de la boutique + clé Claude en production | ⬜ |
+| 9.9 | Écran admin « Conversations WhatsApp » : journal, raison du transfert, « Rendre à l'IA » | ✅ |
+
+Documentation : `docs/BOT_WHATSAPP.md` · Tests : `php artisan test --filter=Bot`
 
 ---
 
@@ -324,13 +364,13 @@ php artisan make:filament-user
 
 | Priorité | Tâche | Action |
 |----------|-------|--------|
-| 🔴 | Paiement production | Déployer sur HTTPS, configurer webhook public, tester Mobile Money + carte |
+| 🔴 | Paiement production | Déployer sur HTTPS (`SESSION_SECURE_COOKIE=true`, `APP_DEBUG=false`), configurer webhook public, tester Mobile Money + carte |
 | 🔴 | Emails | SMTP Hostinger en prod ; `MAIL_MAILER=log` en local |
 | 🟠 | SMS OTP | Renseigner `KECCEL_SMS_TOKEN` dans `.env` si mode SMS activé |
-| 🟠 | Images produits | Uploader les vraies photos via Filament (max 6 par produit) |
+| 🟠 | Meta Pixel | Renseigner `META_PIXEL_ID` dans `.env` si utilisé |
 | 🟡 | Email expédition | Notifier le client quand `tracking_number` est renseigné |
 | 🟡 | Tests | Étendre la couverture PHPUnit (checkout Livewire, OTP) |
-| ⏸️ | Post-MVP | Avis, newsletter, SEO, RGPD avancé |
+| ⏸️ | Post-MVP | Programme fidélité paliers VIP, intégration transporteur (si partenaire identifié) |
 
 ### Commandes utiles
 

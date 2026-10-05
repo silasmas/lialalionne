@@ -45,6 +45,10 @@ class PaymentService
       ]);
     }
 
+    if ($order->payment_method === PaymentMethod::Cod) {
+      return $this->initiateCashOnDelivery($order);
+    }
+
     if ($this->flexPayService->isConfigured()) {
       return match ($order->payment_method) {
         PaymentMethod::MobileMoney => $this->initiateFlexPayMobilePage($order),
@@ -56,6 +60,26 @@ class PaymentService
       PaymentMethod::MobileMoney => $this->initiateMobileMoneySimulated($order),
       default => $this->initiateCard($order),
     };
+  }
+
+  /**
+   * Accepte la commande en paiement à la livraison : aucun appel passerelle,
+   * la commande passe directement en préparation, encaissement manuel à la
+   * livraison.
+   *
+   * @param Order $order Commande à accepter
+   * @return array{redirect_url: string, session_id: string|null, simulated: bool}
+   */
+  private function initiateCashOnDelivery(Order $order): array
+  {
+    $order = $this->orderService->acceptCashOnDelivery($order);
+    $sessionId = 'cod_' . $order->order_number;
+
+    return [
+      'redirect_url' => route('checkout.success', ['session_id' => $sessionId]),
+      'session_id' => $sessionId,
+      'simulated' => false,
+    ];
   }
 
   /**
@@ -387,16 +411,12 @@ class PaymentService
   public function handleFlexPayCallback(Request $request): void
   {
     $payload = $request->all();
-
-    if (!$this->flexPayService->isSuccessfulCallback($payload)) {
-      Log::info('FlexPay callback non réussi', $payload);
-
-      return;
-    }
-
     $reference = $this->flexPayService->callbackReference($payload);
+    $orderNumber = $this->flexPayService->callbackOrderNumber($payload);
 
     if (!$reference) {
+      Log::warning('FlexPay callback sans référence, ignoré', $payload);
+
       return;
     }
 
@@ -408,12 +428,28 @@ class PaymentService
       return;
     }
 
+    // Le corps du callback n'est jamais fiable à lui seul (aucune signature
+    // FlexPay ne le protège) : on revérifie le statut réel de la transaction
+    // directement auprès de l'API FlexPay avant de confirmer le paiement.
+    $verification = $this->flexPayService->checkTransaction($orderNumber ?? $reference);
+
+    if (!$verification['success']) {
+      Log::warning('FlexPay callback reçu mais non confirmé par l\'API FlexPay (rejeté)', [
+        'order' => $order->order_number,
+        'reference' => $reference,
+        'orderNumber' => $orderNumber,
+        'verification' => $verification,
+      ]);
+
+      return;
+    }
+
     $this->orderService->confirmPayment(
       $order,
-      $this->flexPayService->callbackOrderNumber($payload) ?? $reference,
+      $orderNumber ?? $reference,
       [
-        'confirmed_via' => 'flexpay_webhook',
-        'provider_reference' => $payload['provider_reference'] ?? null,
+        'confirmed_via' => 'flexpay_webhook_verified',
+        'provider_reference' => $verification['reference'] ?? null,
       ]
     );
   }

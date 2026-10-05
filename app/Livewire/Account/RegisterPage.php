@@ -8,6 +8,7 @@ use App\Services\OtpService;
 use App\Services\SiteSettingsService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
@@ -57,12 +58,13 @@ class RegisterPage extends Component
     if ($authMode->otpChannel() === 'email') {
       $rules['email'] = ['required', 'email', 'max:255', 'unique:users,email'];
     } else {
-      $rules['phone'] = ['required', 'string', 'min:9', 'max:20', 'unique:users,phone'];
+      $rules['phone'] = ['required', 'string', 'min:9', 'max:20', 'regex:/^\+?[0-9][0-9\s\-]{7,19}$/', 'unique:users,phone'];
       $rules['email'] = ['nullable', 'email', 'max:255', 'unique:users,email'];
     }
 
     $this->validate($rules, [
       'acceptTerms.accepted' => 'Vous devez accepter les Conditions Générales de Vente.',
+      'phone.regex' => 'Format de téléphone invalide.',
     ], [
       'name' => 'nom',
       'email' => 'email',
@@ -135,9 +137,11 @@ class RegisterPage extends Component
     $this->validate([
       'name' => ['required', 'string', 'max:255'],
       'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-      'phone' => ['nullable', 'string', 'max:20'],
-      'password' => ['required', 'string', 'min:8', 'same:passwordConfirmation'],
-    ], [], [
+      'phone' => ['nullable', 'string', 'max:20', 'regex:/^\+?[0-9][0-9\s\-]{7,19}$/'],
+      'password' => ['required', 'string', Password::min(8)->letters()->numbers(), 'same:passwordConfirmation'],
+    ], [
+      'phone.regex' => 'Format de téléphone invalide.',
+    ], [
       'name' => 'nom',
       'email' => 'email',
       'phone' => 'téléphone',

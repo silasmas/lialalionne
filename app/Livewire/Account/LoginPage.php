@@ -7,6 +7,7 @@ use App\Services\CartService;
 use App\Services\OtpService;
 use App\Services\SiteSettingsService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
@@ -48,7 +49,11 @@ class LoginPage extends Component
       $this->validate(['email' => ['required', 'email']], [], ['email' => 'email']);
       $identifier = $this->email;
     } else {
-      $this->validate(['phone' => ['required', 'string', 'min:9', 'max:20']], [], ['phone' => 'téléphone']);
+      $this->validate([
+        'phone' => ['required', 'string', 'min:9', 'max:20', 'regex:/^\+?[0-9][0-9\s\-]{7,19}$/'],
+      ], [
+        'phone.regex' => 'Format de téléphone invalide.',
+      ], ['phone' => 'téléphone']);
       $identifier = $this->phone;
     }
 
@@ -122,12 +127,23 @@ class LoginPage extends Component
       'password' => 'mot de passe',
     ]);
 
+    $throttleKey = 'login:' . strtolower($this->email) . '|' . request()->ip();
+
+    if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+      $seconds = RateLimiter::availableIn($throttleKey);
+      $this->addError('email', "Trop de tentatives. Réessayez dans {$seconds} secondes.");
+
+      return null;
+    }
+
     if (!Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
+      RateLimiter::hit($throttleKey, 60);
       $this->addError('email', 'Identifiants incorrects.');
 
       return null;
     }
 
+    RateLimiter::clear($throttleKey);
     session()->regenerate();
     $user = Auth::user();
 

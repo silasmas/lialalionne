@@ -53,6 +53,14 @@ class ProductsTable
         IconColumn::make('is_featured')
           ->label('Vedette')
           ->boolean(),
+        IconColumn::make('is_new')
+          ->label('Nouveauté')
+          ->boolean()
+          ->toggleable(),
+        IconColumn::make('is_seasonal')
+          ->label('Saison')
+          ->boolean()
+          ->toggleable(),
       ])
       ->filters([
         SelectFilter::make('category_id')
@@ -62,6 +70,10 @@ class ProductsTable
           ->label('Actif'),
         TernaryFilter::make('is_featured')
           ->label('Vedette'),
+        TernaryFilter::make('is_new')
+          ->label('Nouveauté'),
+        TernaryFilter::make('is_seasonal')
+          ->label('Tendance de saison'),
       ])
       ->recordActions([
         EditAction::make(),

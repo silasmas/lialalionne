@@ -34,6 +34,11 @@ class UserForm
               ->label('Téléphone')
               ->tel()
               ->disabled(),
+            TextInput::make('loyalty_points_balance')
+              ->label('Solde points fidélité')
+              ->numeric()
+              ->minValue(0)
+              ->helperText('Ajustable manuellement (geste commercial, correction).'),
           ])
           ->columns(2),
       ]);

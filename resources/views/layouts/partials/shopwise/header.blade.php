@@ -128,9 +128,89 @@
             <li>
               <a class="nav-link nav_item {{ request()->routeIs('shop.catalog') ? 'active' : '' }}" href="{{ route('shop.catalog') }}">Boutique</a>
             </li>
+            @auth
+              <li class="dropdown">
+                <a
+                  class="dropdown-toggle nav-link {{ request()->routeIs('account.*') ? 'active' : '' }}"
+                  href="#"
+                  data-bs-toggle="dropdown"
+                >
+                  Mon compte
+                </a>
+                <div class="dropdown-menu">
+                  <ul>
+                    <li>
+                      <a class="dropdown-item nav-link nav_item" href="{{ route('account.dashboard') }}">Espace client</a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item nav-link nav_item" href="{{ route('account.orders') }}">Mes commandes</a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item nav-link nav_item" href="{{ route('account.favorites') }}">Mes favoris</a>
+                    </li>
+                    <li>
+                      <form method="POST" action="{{ route('account.logout') }}">
+                        @csrf
+                        <button type="submit" class="dropdown-item nav-link nav_item border-0 bg-transparent w-100 text-start">
+                          Déconnexion
+                        </button>
+                      </form>
+                    </li>
+                  </ul>
+                </div>
+              </li>
+            @else
+              <li>
+                <a class="nav-link nav_item {{ request()->routeIs('account.login') ? 'active' : '' }}" href="{{ route('account.login') }}">Connexion</a>
+              </li>
+            @endauth
           </ul>
         </div>
         <ul class="navbar-nav attr-nav align-items-center">
+          <li class="dropdown">
+            @auth
+              <a
+                class="nav-link"
+                href="#"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                aria-label="Mon espace client"
+                title="Mon espace client"
+              >
+                <i class="ti-user"></i>
+              </a>
+              <div class="dropdown-menu dropdown-menu-end account_dropdown_box">
+                <ul class="list-unstyled mb-0 py-2">
+                  <li>
+                    <a class="dropdown-item" href="{{ route('account.dashboard') }}">Espace client</a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="{{ route('account.orders') }}">Mes commandes</a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="{{ route('account.favorites') }}">Mes favoris</a>
+                  </li>
+                  <li>
+                    <form method="POST" action="{{ route('account.logout') }}">
+                      @csrf
+                      <button type="submit" class="dropdown-item border-0 bg-transparent w-100 text-start">
+                        Déconnexion
+                      </button>
+                    </form>
+                  </li>
+                </ul>
+              </div>
+            @else
+              <a
+                class="nav-link"
+                href="{{ route('account.login') }}"
+                aria-label="Connexion"
+                title="Connexion"
+              >
+                <i class="ti-user"></i>
+              </a>
+            @endauth
+          </li>
           <livewire:shop.cart-icon theme="shopwise" />
         </ul>
       </nav>

@@ -36,6 +36,7 @@ class CheckoutCancel extends Component
   {
     return view('livewire.shop.checkout-cancel')->layout('layouts.shop', [
       'title' => 'Paiement annulé — Lialalionne',
+      'noindex' => true,
     ]);
   }
 }

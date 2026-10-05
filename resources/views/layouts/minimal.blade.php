@@ -9,11 +9,10 @@
   <link rel="shortcut icon" type="image/png" href="{{ asset('assets/favicon.png') }}">
   <title>{{ $title ?? 'Lialalionne' }}</title>
 
-  @if (file_exists(public_path('build/manifest.json')))
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-  @else
-    <link rel="stylesheet" href="{{ asset('css/minimal-pages.css') }}">
-  @endif
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ asset('css/minimal-pages.css') }}?v={{ @filemtime(public_path('css/minimal-pages.css')) ?: '1' }}">
 
   @livewireStyles
 </head>

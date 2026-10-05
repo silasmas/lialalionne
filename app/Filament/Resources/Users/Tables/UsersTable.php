@@ -36,6 +36,10 @@ class UsersTable
           ->label('Commandes')
           ->counts('orders')
           ->sortable(),
+        TextColumn::make('loyalty_points_balance')
+          ->label('Points fidélité')
+          ->numeric()
+          ->sortable(),
         TextColumn::make('created_at')
           ->label('Inscrit le')
           ->dateTime('d/m/Y')

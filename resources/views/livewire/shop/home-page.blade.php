@@ -30,59 +30,67 @@
 @endphp
 
 <div>
+  @if ($homeSlides->isNotEmpty())
   <div class="banner_section slide_medium shop_banner_slider staggered-animation-wrap">
     <div id="carouselExampleControls" class="carousel slide carousel-fade light_arrow" data-bs-ride="carousel">
       <div class="carousel-inner">
-        <div class="carousel-item active background_bg" data-img-src="{{ $sw('images/banner1.jpg') }}">
-          <div class="banner_slide_content">
-            <div class="container">
-              <div class="row">
-                <div class="col-lg-7 col-9">
-                  <div class="banner_content overflow-hidden">
-                    <h5 class="mb-3 staggered-animation font-weight-light" data-animation="slideInLeft" data-animation-delay="0.5s">Soins corporels premium</h5>
-                    <h2 class="staggered-animation" data-animation="slideInLeft" data-animation-delay="1s">Lialalionne</h2>
-                    <a class="btn btn-fill-out rounded-0 staggered-animation text-uppercase" href="{{ route('shop.catalog') }}" data-animation="slideInLeft" data-animation-delay="1.5s">Découvrir</a>
+        @foreach ($homeSlides as $index => $slide)
+          @php
+            $isVideo = $slide->isVideo();
+            $mediaUrl = $slide->mediaUrl();
+            $buttonHref = $slide->buttonHref();
+            $itemClasses = $index === 0 ? 'carousel-item active' : 'carousel-item';
+            $itemClasses .= $isVideo ? ' banner_slide_video' : ' background_bg';
+          @endphp
+          <div
+            class="{{ $itemClasses }}"
+            @if (!$isVideo && $mediaUrl) data-img-src="{{ $mediaUrl }}" @endif
+            data-bs-interval="{{ $isVideo ? 140000 : 6000 }}"
+          >
+            @if ($isVideo && $mediaUrl)
+              <video
+                class="banner_slide_video_el"
+                autoplay
+                muted
+                loop
+                playsinline
+                preload="metadata"
+                @if ($slide->posterUrl()) poster="{{ $slide->posterUrl() }}" @endif
+              >
+                <source src="{{ $mediaUrl }}" type="{{ $slide->videoMimeType() }}">
+              </video>
+            @endif
+            @if (!$isVideo || $slide->kicker || $buttonHref)
+              <div class="banner_slide_content">
+                <div class="container">
+                  <div class="row">
+                    <div class="{{ $index === 0 ? 'col-lg-7 col-9' : 'col-lg-6' }}">
+                      <div class="banner_content overflow-hidden">
+                        @if ($slide->kicker)
+                          <h5 class="mb-3 staggered-animation font-weight-light" data-animation="slideInLeft" data-animation-delay="0.5s">{{ $slide->kicker }}</h5>
+                        @endif
+                        @if (!$isVideo)
+                          <h2 class="staggered-animation" data-animation="slideInLeft" data-animation-delay="1s">{{ $slide->title }}</h2>
+                        @endif
+                        @if ($buttonHref)
+                          <a class="btn btn-fill-out rounded-0 staggered-animation text-uppercase" href="{{ $buttonHref }}" data-animation="slideInLeft" data-animation-delay="1.5s">{{ $slide->button_label }}</a>
+                        @endif
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            @endif
           </div>
-        </div>
-        <div class="carousel-item background_bg" data-img-src="{{ $sw('images/banner2.jpg') }}">
-          <div class="banner_slide_content">
-            <div class="container">
-              <div class="row">
-                <div class="col-lg-6">
-                  <div class="banner_content overflow-hidden">
-                    <h5 class="mb-3 staggered-animation font-weight-light" data-animation="slideInLeft" data-animation-delay="0.5s">Qualité & naturel</h5>
-                    <h2 class="staggered-animation" data-animation="slideInLeft" data-animation-delay="1s">Prenez soin de vous</h2>
-                    <a class="btn btn-fill-out rounded-0 staggered-animation text-uppercase" href="{{ route('shop.catalog') }}" data-animation="slideInLeft" data-animation-delay="1.5s">Voir la boutique</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="carousel-item background_bg" data-img-src="{{ $sw('images/banner3.jpg') }}">
-          <div class="banner_slide_content">
-            <div class="container">
-              <div class="row">
-                <div class="col-lg-6">
-                  <div class="banner_content overflow-hidden">
-                    <h5 class="mb-3 staggered-animation font-weight-light" data-animation="slideInLeft" data-animation-delay="0.5s">Livraison & retrait</h5>
-                    <h2 class="staggered-animation" data-animation="slideInLeft" data-animation-delay="1s">Kinshasa & RDC</h2>
-                    <a class="btn btn-fill-out rounded-0 staggered-animation text-uppercase" href="{{ route('shop.catalog') }}" data-animation="slideInLeft" data-animation-delay="1.5s">Commander</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        @endforeach
       </div>
-      <a class="carousel-control-prev" href="#carouselExampleControls" role="button" data-bs-slide="prev"><i class="ion-chevron-left"></i></a>
-      <a class="carousel-control-next" href="#carouselExampleControls" role="button" data-bs-slide="next"><i class="ion-chevron-right"></i></a>
+      @if ($homeSlides->count() > 1)
+        <a class="carousel-control-prev" href="#carouselExampleControls" role="button" data-bs-slide="prev"><i class="ion-chevron-left"></i></a>
+        <a class="carousel-control-next" href="#carouselExampleControls" role="button" data-bs-slide="next"><i class="ion-chevron-right"></i></a>
+      @endif
     </div>
   </div>
+  @endif
 
   <div class="main_content">
     <div class="section pb_20">
@@ -90,21 +98,33 @@
         <div class="row">
           <div class="col-md-6">
             <div class="single_banner">
-              <img src="{{ $sw('images/shop_banner_img1.jpg') }}" alt="Collection">
+              <img
+                src="{{ $newArrivalBanner?->primaryImageUrl() ?? $sw('images/shop_banner_img1.jpg') }}"
+                alt="{{ $newArrivalBanner?->name ?? 'Nouveautés Lialalionne' }}"
+              >
               <div class="single_banner_info">
                 <h5 class="single_bn_title1">Nouveautés</h5>
-                <h3 class="single_bn_title">Nouvelle collection</h3>
-                <a href="{{ route('shop.catalog') }}" class="single_bn_link">Voir</a>
+                <h3 class="single_bn_title">{{ $newArrivalBanner?->name ?? 'Nouvelle collection' }}</h3>
+                <a href="{{ route('shop.catalog', ['selection' => 'nouveautes']) }}" class="single_bn_link">Voir</a>
               </div>
             </div>
           </div>
           <div class="col-md-6">
             <div class="single_banner">
-              <img src="{{ $sw('images/shop_banner_img2.jpg') }}" alt="Promotions">
+              <img
+                src="{{ $specialOfferBanner?->primaryImageUrl() ?? $sw('images/shop_banner_img2.jpg') }}"
+                alt="{{ $specialOfferBanner?->name ?? 'Offres spéciales Lialalionne' }}"
+              >
               <div class="single_banner_info">
                 <h3 class="single_bn_title">Offres spéciales</h3>
-                <h4 class="single_bn_title1">Soins visage & corps</h4>
-                <a href="{{ route('shop.catalog') }}" class="single_bn_link">Acheter</a>
+                <h4 class="single_bn_title1">
+                  @if ($specialOfferDiscountPercent > 0)
+                    Jusqu'à {{ $specialOfferDiscountPercent }}% de rabais
+                  @else
+                    {{ $specialOfferBanner?->name ?? 'Soins visage & corps' }}
+                  @endif
+                </h4>
+                <a href="{{ route('shop.catalog', ['selection' => 'offres']) }}" class="single_bn_link">Acheter</a>
               </div>
             </div>
           </div>
@@ -148,7 +168,6 @@
                   :products="$newArrivalProducts"
                   :favorite-ids="$favoriteIds"
                   :cart-added-product-id="$cartAddedProductId"
-                  :template-images="$templateImages"
                   :mark-first-as-new="true"
                   grid-key="arrival"
                 />
@@ -158,7 +177,6 @@
                   :products="$bestSellerProducts"
                   :favorite-ids="$favoriteIds"
                   :cart-added-product-id="$cartAddedProductId"
-                  :template-images="$templateImages"
                   grid-key="sellers"
                 />
               </div>
@@ -167,7 +185,6 @@
                   :products="$featuredTabProducts"
                   :favorite-ids="$favoriteIds"
                   :cart-added-product-id="$cartAddedProductId"
-                  :template-images="$templateImages"
                   grid-key="featured-tab"
                 />
               </div>
@@ -176,7 +193,6 @@
                   :products="$specialOfferProducts"
                   :favorite-ids="$favoriteIds"
                   :cart-added-product-id="$cartAddedProductId"
-                  :template-images="$templateImages"
                   grid-key="special"
                 />
               </div>
@@ -194,16 +210,26 @@
             <div class="trand_banner_text text-center text-md-start">
               <div class="heading_s1 mb-3">
                 <span class="sub_heading">Nouvelles tendances de saison !</span>
-                <h2>Meilleure collection d'été</h2>
+                <h2>{{ $seasonalHighlight?->name ?? 'Meilleure collection de saison' }}</h2>
               </div>
-              <h5 class="mb-4">Profitez de nos offres sur les soins corporels</h5>
-              <a href="{{ route('shop.catalog') }}" class="btn btn-fill-out rounded-0">Magasinez maintenant</a>
+              <h5 class="mb-4">
+                {{ $seasonalHighlight?->short_description ?? 'Profitez de nos offres sur les soins corporels' }}
+              </h5>
+              <a
+                href="{{ $seasonalHighlight ? route('products.show', $seasonalHighlight) : route('shop.catalog', ['selection' => 'tendances']) }}"
+                class="btn btn-fill-out rounded-0"
+              >
+                Magasinez maintenant
+              </a>
             </div>
             <div class="medium_divider clearfix"></div>
           </div>
           <div class="col-md-5">
             <div class="text-center trading_img">
-              <img src="{{ $sw('images/tranding_img.png') }}" alt="Collection été Lialalionne">
+              <img
+                src="{{ $seasonalHighlight?->primaryImageUrl() ?? $sw('images/tranding_img.png') }}"
+                alt="{{ $seasonalHighlight?->name ?? 'Tendances de saison Lialalionne' }}"
+              >
             </div>
           </div>
         </div>
@@ -240,7 +266,6 @@
                       :product="$product"
                       :favorite-ids="$favoriteIds"
                       :cart-added-product-id="$cartAddedProductId"
-                      :display-image-url="$templateImages[$loop->index % count($templateImages)]"
                     />
                   </div>
                 @endforeach

@@ -122,7 +122,7 @@
                 </ul>
               </div>
 
-              @if ($search || $categoryId || $sort !== 'featured')
+              @if ($search || $categoryId || $sort !== 'featured' || $selection !== '')
                 <div class="widget">
                   <button type="button" wire:click="resetFilters" class="btn btn-fill-out btn-sm w-100">
                     Réinitialiser les filtres
@@ -133,12 +133,27 @@
               <div class="widget">
                 <div class="shop_banner">
                   <div class="banner_img overlay_bg_20">
-                    <img src="{{ $sw('images/sidebar_banner_img.jpg') }}" alt="Promotion Lialalionne">
+                    <img
+                      src="{{ $newCollectionBanner?->primaryImageUrl() ?? $sw('images/sidebar_banner_img.jpg') }}"
+                      alt="{{ $newCollectionBanner?->name ?? 'Nouvelle collection Lialalionne' }}"
+                    >
                   </div>
                   <div class="shop_bn_content2 text_white">
                     <h5 class="text-uppercase shop_subtitle">Nouvelle collection</h5>
-                    <h3 class="text-uppercase shop_title">Jusqu'à 30% de rabais</h3>
-                    <a href="{{ route('shop.catalog') }}" class="btn btn-fill-out btn-sm text-uppercase">Acheter</a>
+                    <h3 class="text-uppercase shop_title">
+                      @if ($newCollectionDiscountPercent > 0)
+                        Jusqu'à {{ $newCollectionDiscountPercent }}% de rabais
+                      @else
+                        {{ $newCollectionBanner?->name ?? 'Découvrir les nouveautés' }}
+                      @endif
+                    </h3>
+                    <a
+                      href="{{ route('shop.catalog', ['selection' => 'collection']) }}"
+                      class="btn btn-fill-out btn-sm text-uppercase"
+                      wire:click.prevent="$set('selection', 'collection')"
+                    >
+                      Acheter
+                    </a>
                   </div>
                 </div>
               </div>

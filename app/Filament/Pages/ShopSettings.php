@@ -92,6 +92,10 @@ class ShopSettings extends Page
           Toggle::make('payment_mobile_money_enabled')
             ->label('Mobile Money')
             ->default(true),
+          Toggle::make('payment_cod_enabled')
+            ->label('Paiement à la livraison')
+            ->helperText('Aucun encaissement en ligne : le client paie en espèces à réception. Le paiement est confirmé manuellement par l\'admin.')
+            ->default(false),
         ]),
       Section::make('Devises')
         ->description('Prix catalogue en EUR, conversion CDF / USD au checkout.')
@@ -133,6 +137,18 @@ class ShopSettings extends Page
           Textarea::make('pickup_store_address')
             ->label('Adresse / horaires')
             ->rows(3),
+        ]),
+      Section::make('WhatsApp (conseillère Chez Lia)')
+        ->description('Numéro relié à Callbell et au bot. Il alimente le bouton flottant et « Commander sur WhatsApp » sur les fiches produits.')
+        ->schema([
+          TextInput::make('whatsapp_number')
+            ->label('Numéro WhatsApp de la boutique')
+            ->placeholder('+243 81 234 5678')
+            ->tel()
+            ->maxLength(20),
+          Toggle::make('whatsapp_button_enabled')
+            ->label('Afficher le bouton WhatsApp flottant sur le site')
+            ->default(true),
         ]),
     ]);
   }
