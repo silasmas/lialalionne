@@ -36,14 +36,15 @@ class WhatsAppNotifier
    *
    * @param string $number Numéro de la cliente (tous formats)
    * @param string $text Texte WhatsApp
+   * @param array<string, string> $options Options Callbell (team_uuid, bot_status…)
    * @return bool True si Callbell a accepté le message
    */
-  public function sendText(string $number, string $text): bool
+  public function sendText(string $number, string $text, array $options = []): bool
   {
     return $this->send($number, [
       'type' => 'text',
       'content' => ['text' => $text],
-    ]);
+    ] + $options);
   }
 
   /**

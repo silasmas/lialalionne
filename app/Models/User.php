@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
   'name',
@@ -32,7 +33,9 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable implements FilamentUser, HasName
 {
   /** @use HasFactory<UserFactory> */
-  use HasFactory, Notifiable;
+  use HasFactory;
+  use HasRoles;
+  use Notifiable;
 
   /**
    * Attributs castés automatiquement.
@@ -57,7 +60,18 @@ class User extends Authenticatable implements FilamentUser, HasName
    */
   public function canAccessPanel(Panel $panel): bool
   {
-    return $this->is_admin;
+    if ($panel->getId() !== 'admin') {
+      return false;
+    }
+
+    if ($this->is_admin) {
+      return true;
+    }
+
+    $superAdmin = (string) config('filament-shield.super_admin.name', 'super_admin');
+    $panelUser = (string) config('filament-shield.panel_user.name', 'panel_user');
+
+    return $this->hasAnyRole([$superAdmin, $panelUser]);
   }
 
   /**

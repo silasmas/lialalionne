@@ -26,6 +26,13 @@ use Illuminate\Validation\ValidationException;
 class BotCommerceService
 {
   /**
+   * Devises acceptées par FlexPay pour le paiement.
+   *
+   * @var list<string>
+   */
+  public const PAYMENT_CURRENCIES = ['CDF', 'USD'];
+
+  /**
    * @param CurrencyService $currency Conversion des prix
    * @param ShippingService $shipping Tarifs de livraison
    * @param CouponService $coupons Codes promo
@@ -605,9 +612,10 @@ class BotCommerceService
    * @param Order $order Commande en attente
    * @param string|null $payerPhone Numéro à débiter (par défaut celui de la commande)
    * @param string|null $operatorCode Opérateur (mpesa, airtel, orange, afrimoney) ; deviné sinon
+   * @param string|null $currency Devise à débiter (CDF ou USD) ; la commande est convertie si besoin
    * @return array<string, mixed> Résultat lisible par le bot
    */
-  public function payMobileMoney(Order $order, ?string $payerPhone = null, ?string $operatorCode = null): array
+  public function payMobileMoney(Order $order, ?string $payerPhone = null, ?string $operatorCode = null, ?string $currency = null): array
   {
     $this->ensurePayable($order);
 
@@ -629,6 +637,10 @@ class BotCommerceService
       throw ValidationException::withMessages(['payment_method' => 'Le paiement Mobile Money n\'est pas disponible.']);
     }
 
+    if ($currency) {
+      $order = $this->switchCurrency($order, $currency);
+    }
+
     if ($order->payment_method !== PaymentMethod::MobileMoney) {
       $order->update(['payment_method' => PaymentMethod::MobileMoney]);
       $order->payment?->update(['method' => PaymentMethod::MobileMoney]);
@@ -644,6 +656,7 @@ class BotCommerceService
       'operator' => $operator->label(),
       'payer_phone' => '+' . $normalized,
       'amount' => $this->currency->formatOrderAmount((float) $order->total, $order->currency),
+      'currency' => $order->currency,
       'instructions' => $order->status === OrderStatus::Pending
         ? 'Une demande de paiement ' . $operator->label() . ' a été envoyée au +' . $normalized . '. La cliente doit la valider avec son code secret ; la confirmation arrive automatiquement.'
         : 'Paiement confirmé.',
@@ -679,14 +692,19 @@ class BotCommerceService
    * Lien de paiement par carte à envoyer sur WhatsApp (renouvelé si expiré).
    *
    * @param Order $order Commande en attente
+   * @param string|null $currency Devise de paiement (CDF ou USD) ; la commande est convertie si besoin
    * @return string URL /payer/{token}
    */
-  public function cardPaymentUrl(Order $order): string
+  public function cardPaymentUrl(Order $order, ?string $currency = null): string
   {
     $this->ensurePayable($order);
 
     if (!$this->settings->isPaymentMethodEnabled(PaymentMethod::Stripe)) {
       throw ValidationException::withMessages(['payment_method' => 'Le paiement par carte n\'est pas disponible.']);
+    }
+
+    if ($currency) {
+      $order = $this->switchCurrency($order, $currency);
     }
 
     if (!$order->payment_token || ($order->payment_token_expires_at && $order->payment_token_expires_at->isPast())) {
@@ -697,6 +715,72 @@ class BotCommerceService
     }
 
     return route('bot.pay.show', ['token' => $order->payment_token]);
+  }
+
+  /**
+   * Convertit une commande en attente dans une autre devise (CDF ↔ USD) :
+   * lignes, sous-total, livraison, remise, total et montant du paiement.
+   * La conversion passe par la devise de base du catalogue, aux taux du site.
+   *
+   * @param Order $order Commande en attente
+   * @param string $currency Devise souhaitée
+   * @return Order Commande à jour
+   */
+  public function switchCurrency(Order $order, string $currency): Order
+  {
+    $this->ensurePayable($order);
+
+    $target = strtoupper(trim($currency));
+    $from = strtoupper((string) ($order->currency ?: $this->currency->primaryCurrency()));
+
+    if (!in_array($target, self::PAYMENT_CURRENCIES, true)) {
+      throw ValidationException::withMessages([
+        'currency' => 'Devise non prise en charge. Choisissez CDF (francs congolais) ou USD (dollars).',
+      ]);
+    }
+
+    if ($target === $from) {
+      return $order->fresh(['items', 'payment']);
+    }
+
+    $convert = fn ($amount): float => $this->currency->convertFromEur(
+      $this->currency->convertToEur((float) $amount, $from),
+      $target
+    );
+
+    DB::transaction(function () use ($order, $target, $convert): void {
+      foreach ($order->items as $item) {
+        $item->update([
+          'unit_price' => $convert($item->unit_price),
+          'total_price' => $convert($item->total_price),
+        ]);
+      }
+
+      $subtotal = $convert($order->subtotal);
+      $shipping = $convert($order->shipping_amount);
+      $discount = $convert($order->discount_amount);
+      $tax = $convert($order->tax_amount);
+      $total = round(max(0, $subtotal + $shipping + $tax - $discount), $target === 'CDF' ? 0 : 2);
+
+      $order->update([
+        'currency' => $target,
+        'subtotal' => $subtotal,
+        'shipping_amount' => $shipping,
+        'discount_amount' => $discount,
+        'tax_amount' => $tax,
+        'total' => $total,
+      ]);
+
+      $order->payment?->update([
+        'amount' => $total,
+        'currency' => $target,
+        'metadata' => array_merge($order->payment->metadata ?? [], [
+          'rate_eur' => $this->currency->getRateFromEur($target),
+        ]),
+      ]);
+    });
+
+    return $order->fresh(['items', 'payment']);
   }
 
   /**
@@ -907,7 +991,7 @@ class BotCommerceService
   {
     $currency = strtoupper((string) $currency);
 
-    return in_array($currency, $this->currency->availableCurrencies(), true)
+    return in_array($currency, [...self::PAYMENT_CURRENCIES, ...$this->currency->availableCurrencies()], true)
       ? $currency
       : $this->currency->primaryCurrency();
   }

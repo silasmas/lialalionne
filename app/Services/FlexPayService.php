@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Order;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -72,36 +73,33 @@ class FlexPayService
   public function initiateCardPayment(Order $order): array
   {
     $reference = $this->buildReference($order);
+    $cancelUrl = route('checkout.cancel', ['order' => $order->order_number]);
 
-    $response = Http::withToken(config('services.flexpay.token'))
-      ->acceptJson()
+    // Format de la passerelle carte FlexPay (v1.1) : champs en snake_case et
+    // jeton dans le corps (« authorization »), comme l'intégration Rachoux
+    // Traiteur qui fonctionne en production.
+    $response = Http::timeout(30)
       ->post(config('services.flexpay.gateway_card'), [
+        'authorization' => 'Bearer ' . config('services.flexpay.token'),
         'merchant' => config('services.flexpay.merchant'),
         'reference' => $reference,
         'amount' => $this->formatAmount($order->total),
         'currency' => strtoupper($order->currency),
         'description' => 'Commande ' . $order->order_number,
-        'callbackUrl' => route('payment.webhook.flexpay'),
-        'approveUrl' => route('checkout.success') . '?session_id=' . $reference,
-        'cancelUrl' => route('checkout.cancel', ['order' => $order->order_number]),
-        'declineUrl' => route('checkout.cancel', ['order' => $order->order_number]),
-        'homeUrl' => route('home'),
+        'callback_url' => route('payment.webhook.flexpay'),
+        'approve_url' => route('checkout.success') . '?session_id=' . $reference,
+        'cancel_url' => $cancelUrl,
+        'decline_url' => $cancelUrl,
+        'home_url' => route('home'),
       ]);
 
     $body = $response->json() ?? [];
-
-    if (!$response->successful()) {
-      Log::error('FlexPay card initiate failed', ['body' => $body, 'status' => $response->status()]);
-      throw ValidationException::withMessages([
-        'payment' => $body['message'] ?? 'Impossible d\'initier le paiement par carte.',
-      ]);
-    }
-
     $redirectUrl = $body['url'] ?? $body['link'] ?? $body['data']['link'] ?? null;
 
-    if (!$redirectUrl) {
+    if (!$response->successful() || (string) ($body['code'] ?? '0') !== '0' || !$redirectUrl) {
+      Log::error('FlexPay card initiate failed', ['body' => $body, 'status' => $response->status(), 'reference' => $reference]);
       throw ValidationException::withMessages([
-        'payment' => 'La passerelle n\'a pas renvoyé d\'URL de paiement. Réessayez ou choisissez Mobile Money.',
+        'payment' => $body['message'] ?? 'La passerelle n\'a pas renvoyé d\'URL de paiement. Réessayez ou choisissez Mobile Money.',
       ]);
     }
 
@@ -120,20 +118,20 @@ class FlexPayService
    */
   public function checkTransaction(string $orderNumber): array
   {
+    // Doc FlexPay v1.4 : GET /api/rest/v1/check/{orderNumber}.
     $response = Http::withToken(config('services.flexpay.token'))
       ->acceptJson()
-      ->get(config('services.flexpay.gateway_check'), [
-        'orderNumber' => $orderNumber,
-      ]);
+      ->timeout(20)
+      ->get(rtrim((string) config('services.flexpay.gateway_check'), '/') . '/' . rawurlencode($orderNumber));
 
     $body = $response->json() ?? [];
 
-    if (($body['code'] ?? '1') !== '0') {
+    if ((string) ($body['code'] ?? '1') !== '0') {
       return ['success' => false, 'status' => null, 'reference' => null];
     }
 
     $transaction = $body['transaction'] ?? [];
-    $success = ($transaction['status'] ?? '1') === '0';
+    $success = (string) ($transaction['status'] ?? '1') === '0';
 
     return [
       'success' => $success,
@@ -183,7 +181,9 @@ class FlexPayService
    */
   private function buildReference(Order $order): string
   {
-    return 'LL-' . $order->order_number;
+    // Suffixe unique : FlexPay refuse une référence déjà utilisée, or la
+    // cliente peut relancer le paiement (autre numéro, autre devise, carte).
+    return 'LL-' . $order->order_number . '-' . strtoupper(Str::random(4));
   }
 
   /**

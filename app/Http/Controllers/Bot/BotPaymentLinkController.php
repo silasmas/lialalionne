@@ -6,9 +6,11 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\BotCommerceService;
 use App\Services\PaymentService;
 use App\Services\SiteSettingsService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -22,10 +24,12 @@ class BotPaymentLinkController extends Controller
   /**
    * @param PaymentService $payments Paiements FlexPay / Stripe
    * @param SiteSettingsService $settings Moyens de paiement activés
+   * @param BotCommerceService $bot Conversion de devise de la commande
    */
   public function __construct(
     private readonly PaymentService $payments,
-    private readonly SiteSettingsService $settings
+    private readonly SiteSettingsService $settings,
+    private readonly BotCommerceService $bot
   ) {
   }
 
@@ -52,12 +56,14 @@ class BotPaymentLinkController extends Controller
   }
 
   /**
-   * Redirige vers la passerelle de paiement par carte.
+   * Redirige vers la passerelle de paiement par carte, dans la devise
+   * choisie sur la page (CDF ou USD).
    *
+   * @param Request $request Requête (currency optionnelle)
    * @param string $token Jeton du lien
    * @return RedirectResponse Passerelle carte
    */
-  public function card(string $token): RedirectResponse
+  public function card(Request $request, string $token): RedirectResponse
   {
     $order = $this->findOrder($token);
 
@@ -66,6 +72,12 @@ class BotPaymentLinkController extends Controller
 
     if (!$this->settings->isPaymentMethodEnabled(PaymentMethod::Stripe)) {
       throw ValidationException::withMessages(['payment' => 'Le paiement par carte n\'est pas disponible.']);
+    }
+
+    $currency = strtoupper((string) $request->input('currency'));
+
+    if (in_array($currency, BotCommerceService::PAYMENT_CURRENCIES, true) && $currency !== $order->currency) {
+      $order = $this->bot->switchCurrency($order, $currency);
     }
 
     if ($order->payment_method !== PaymentMethod::Stripe) {

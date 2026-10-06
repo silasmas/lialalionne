@@ -43,6 +43,12 @@ class BotAiTools
 
     $orderNumber = ['type' => 'string', 'description' => 'Numéro de commande, ex. LL-ABCD1234.'];
 
+    $currency = [
+      'type' => 'string',
+      'enum' => ['CDF', 'USD'],
+      'description' => 'Devise à payer. La commande est convertie (CDF = francs congolais, USD = dollars). À préciser dès que la cliente demande à payer en dollars ou en francs.',
+    ];
+
     return [
       [
         'name' => 'rechercher_produits',
@@ -112,13 +118,14 @@ class BotAiTools
       ],
       [
         'name' => 'payer_mobile_money',
-        'description' => 'Envoie la demande de paiement Mobile Money sur le téléphone de la cliente (elle valide avec son code secret).',
+        'description' => 'Envoie (ou renvoie) la demande de paiement Mobile Money sur le téléphone de la cliente (elle valide avec son code secret). Le résultat donne le montant et la devise réellement demandés : répète-les tels quels.',
         'input_schema' => [
           'type' => 'object',
           'properties' => [
             'order_number' => $orderNumber,
             'payer_phone' => ['type' => 'string', 'description' => 'Numéro à débiter si différent du numéro WhatsApp.'],
             'operator' => ['type' => 'string', 'enum' => ['mpesa', 'airtel', 'orange', 'afrimoney'], 'description' => 'Facultatif : deviné d\'après le numéro.'],
+            'currency' => $currency,
           ],
           'required' => ['order_number'],
         ],
@@ -134,10 +141,13 @@ class BotAiTools
       ],
       [
         'name' => 'lien_paiement_carte',
-        'description' => 'Renvoie le lien de paiement par carte bancaire à envoyer à la cliente.',
+        'description' => 'Renvoie le lien de paiement par carte bancaire (Visa, Mastercard) à envoyer à la cliente, avec le montant et la devise. Sur la page, la cliente peut aussi choisir de payer en francs ou en dollars.',
         'input_schema' => [
           'type' => 'object',
-          'properties' => ['order_number' => $orderNumber],
+          'properties' => [
+            'order_number' => $orderNumber,
+            'currency' => $currency,
+          ],
           'required' => ['order_number'],
         ],
       ],
@@ -201,12 +211,11 @@ class BotAiTools
         'payer_mobile_money' => $this->bot->payMobileMoney(
           $this->order((string) ($input['order_number'] ?? ''), $phone),
           $input['payer_phone'] ?? null,
-          $input['operator'] ?? null
+          $input['operator'] ?? null,
+          $input['currency'] ?? null
         ),
         'verifier_paiement' => $this->bot->verifyPayment($this->order((string) ($input['order_number'] ?? ''), $phone)),
-        'lien_paiement_carte' => ['card_payment_url' => $this->bot->cardPaymentUrl(
-          $this->order((string) ($input['order_number'] ?? ''), $phone)
-        )],
+        'lien_paiement_carte' => $this->cardLink((string) ($input['order_number'] ?? ''), $phone, $input['currency'] ?? null),
         'suivi_commandes' => !empty($input['order_number'])
           ? ['commande' => $this->bot->orderPayload($this->order((string) $input['order_number'], $phone))]
           : ['commandes' => $this->bot->ordersForPhone($phone)],
@@ -292,6 +301,28 @@ class BotAiTools
         'card' => 'Appelle lien_paiement_carte et envoie le lien.',
         default => 'Demande quel numéro débiter (ce numéro WhatsApp ou un autre), puis payer_mobile_money.',
       },
+    ];
+  }
+
+  /**
+   * Lien de paiement par carte avec le montant réellement dû.
+   *
+   * @param string $orderNumber Numéro de commande
+   * @param string $phone Numéro de la conversation
+   * @param string|null $currency Devise souhaitée
+   * @return array<string, mixed> Lien et montant
+   */
+  private function cardLink(string $orderNumber, string $phone, ?string $currency): array
+  {
+    $order = $this->order($orderNumber, $phone);
+    $url = $this->bot->cardPaymentUrl($order, $currency);
+    $payload = $this->bot->orderPayload($order->fresh());
+
+    return [
+      'card_payment_url' => $url,
+      'montant' => $payload['total'],
+      'devise' => $payload['currency'],
+      'consigne' => 'Envoie ce lien tel quel. La cliente l\'ouvre, vérifie le récapitulatif, choisit « Payer par carte » (ou l\'autre devise) et saisit sa carte sur la page sécurisée. Le lien reste valable 72 h.',
     ];
   }
 

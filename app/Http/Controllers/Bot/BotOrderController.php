@@ -115,6 +115,7 @@ class BotOrderController extends Controller
       'phone' => ['required', 'string', 'max:30'],
       'payer_phone' => ['nullable', 'string', 'max:30'],
       'operator' => ['nullable', 'in:mpesa,airtel,orange,afrimoney'],
+      'currency' => ['nullable', 'in:CDF,USD,cdf,usd'],
     ]);
 
     $order = $this->ownedOrder($orderNumber, $data['phone']);
@@ -123,7 +124,7 @@ class BotOrderController extends Controller
       return response()->json(['message' => 'Commande introuvable pour ce numéro.'], 404);
     }
 
-    return response()->json($this->bot->payMobileMoney($order, $data['payer_phone'] ?? null, $data['operator'] ?? null));
+    return response()->json($this->bot->payMobileMoney($order, $data['payer_phone'] ?? null, $data['operator'] ?? null, $data['currency'] ?? null));
   }
 
   /**
@@ -154,14 +155,19 @@ class BotOrderController extends Controller
    */
   public function cardLink(Request $request, string $orderNumber): JsonResponse
   {
-    $data = $request->validate(['phone' => ['required', 'string', 'max:30']]);
+    $data = $request->validate([
+      'phone' => ['required', 'string', 'max:30'],
+      'currency' => ['nullable', 'in:CDF,USD,cdf,usd'],
+    ]);
     $order = $this->ownedOrder($orderNumber, $data['phone']);
 
     if (!$order) {
       return response()->json(['message' => 'Commande introuvable pour ce numéro.'], 404);
     }
 
-    return response()->json(['card_payment_url' => $this->bot->cardPaymentUrl($order)]);
+    $url = $this->bot->cardPaymentUrl($order, $data['currency'] ?? null);
+
+    return response()->json(['card_payment_url' => $url, 'order' => $this->bot->orderPayload($order->fresh())]);
   }
 
   /**

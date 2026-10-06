@@ -307,6 +307,115 @@ class BotApiTest extends TestCase
   }
 
   /**
+   * @param string $method mobile_money ou card
+   * @return Order Commande WhatsApp en attente (produit à 10 en devise de base)
+   */
+  private function pendingOrder(string $method = 'mobile_money'): Order
+  {
+    $number = $this->postJson('/api/bot/commandes', [
+      'phone' => '0821234567',
+      'name' => 'Marie K.',
+      'items' => [['sku' => 'CL-SOLO-001']],
+      'fulfillment_type' => 'pickup',
+      'payment_method' => $method,
+    ], $this->headers())->assertCreated()->json('order.order_number');
+
+    return Order::query()->where('order_number', $number)->firstOrFail();
+  }
+
+  /**
+   * @return void
+   */
+  public function testMobileMoneyPushCanSwitchTheOrderToDollars(): void
+  {
+    config([
+      'services.flexpay.merchant' => 'LIA',
+      'services.flexpay.token' => 'flex-token',
+      'services.flexpay.gateway_mobile' => 'https://backend.flexpay.test/paymentService',
+    ]);
+    Http::fake(['backend.flexpay.test/*' => Http::response(['code' => '0', 'message' => 'OK', 'orderNumber' => 'FLX-1'])]);
+
+    $order = $this->pendingOrder();
+
+    $this->postJson("/api/bot/commandes/{$order->order_number}/mobile-money", [
+      'phone' => '0821234567',
+      'currency' => 'USD',
+    ], $this->headers())
+      ->assertOk()
+      ->assertJsonPath('push_sent', true)
+      ->assertJsonPath('currency', 'USD')
+      ->assertJsonPath('amount', '10.80 $');
+
+    $order->refresh()->load(['items', 'payment']);
+    $this->assertSame('USD', $order->currency);
+    $this->assertEquals(10.8, (float) $order->total);
+    $this->assertEquals(10.8, (float) $order->items->first()->unit_price);
+    $this->assertSame('USD', $order->payment->currency);
+    $this->assertEquals(10.8, (float) $order->payment->amount);
+
+    Http::assertSent(fn ($request) => $request['currency'] === 'USD'
+      && $request['amount'] === '10.80'
+      && str_starts_with($request['reference'], 'LL-' . $order->order_number . '-'));
+
+    $this->postJson("/api/bot/commandes/{$order->order_number}/mobile-money", [
+      'phone' => '0821234567',
+      'currency' => 'EUR',
+    ], $this->headers())->assertStatus(422);
+  }
+
+  /**
+   * @return void
+   */
+  public function testCardPaymentUsesFlexPayCardFormatAndChosenCurrency(): void
+  {
+    config([
+      'services.flexpay.merchant' => 'LIA',
+      'services.flexpay.token' => 'flex-token',
+      'services.flexpay.gateway_card' => 'https://cardpayment.flexpay.test/v1.1/pay',
+    ]);
+    Http::fake(['cardpayment.flexpay.test/*' => Http::response(['code' => '0', 'message' => 'OK', 'url' => 'https://cardpayment.flexpay.test/checkout/abc'])]);
+
+    $order = $this->pendingOrder();
+
+    $this->get('/payer/' . $order->payment_token)->assertOk()->assertSee('Payer plutôt en');
+
+    $this->post('/payer/' . $order->payment_token . '/carte', ['currency' => 'CDF'])
+      ->assertRedirect('https://cardpayment.flexpay.test/checkout/abc');
+
+    $order->refresh()->load('payment');
+    $this->assertSame('CDF', $order->currency);
+    $this->assertEquals(28500, (float) $order->total);
+
+    Http::assertSent(fn ($request) => $request['authorization'] === 'Bearer flex-token'
+      && $request['merchant'] === 'LIA'
+      && $request['currency'] === 'CDF'
+      && $request['amount'] === '28500.00'
+      && filled($request['callback_url'])
+      && filled($request['approve_url'])
+      && filled($request['cancel_url'])
+      && filled($request['decline_url']));
+
+    $this->assertSame('card', $order->payment->metadata['flexpay_type']);
+    $this->assertStringStartsWith('LL-' . $order->order_number . '-', $order->payment->transaction_id);
+  }
+
+  /**
+   * @return void
+   */
+  public function testCardPaymentShowsGatewayErrorOnThePage(): void
+  {
+    config(['services.flexpay.merchant' => 'LIA', 'services.flexpay.token' => 'flex-token']);
+    Http::fake(['*' => Http::response(['code' => '1', 'message' => 'Marchand non autorisé'])]);
+
+    $order = $this->pendingOrder();
+
+    $this->from('/payer/' . $order->payment_token)
+      ->post('/payer/' . $order->payment_token . '/carte')
+      ->assertRedirect('/payer/' . $order->payment_token)
+      ->assertSessionHasErrors(['payment' => 'Marchand non autorisé']);
+  }
+
+  /**
    * @return void
    */
   public function testAcceptsBotTokenInQueryStringLikeCallbell(): void

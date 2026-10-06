@@ -6,6 +6,7 @@ use App\Filament\Pages\Auth\Login;
 use App\Filament\Widgets\LatestOrders;
 use App\Filament\Widgets\LowStockProducts;
 use App\Filament\Widgets\StatsOverview;
+use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -57,8 +58,15 @@ class AdminPanelProvider extends PanelProvider
         'Catalogue',
         'Ventes',
         'Marketing',
+        'Accès',
         'Paramètres',
       ])
+      ->plugin(
+        FilamentShieldPlugin::make()
+          ->navigationGroup('Accès')
+          ->navigationLabel('Rôles & permissions')
+          ->navigationSort(2)
+      )
       ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
       ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
       ->pages([

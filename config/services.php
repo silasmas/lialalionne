@@ -47,6 +47,8 @@ return [
         'url' => env('CALLBELL_API_URL', 'https://api.callbell.eu/v1'),
         'token' => env('CALLBELL_API_TOKEN'),
         'channel_uuid' => env('CALLBELL_CHANNEL_UUID'),
+        // Équipe à qui assigner une conversation transférée par l'IA.
+        'team_uuid' => env('CALLBELL_TEAM_UUID'),
     ],
 
     'anthropic' => [

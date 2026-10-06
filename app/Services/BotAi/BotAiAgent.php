@@ -21,6 +21,9 @@ class BotAiAgent
 
   public const STATE_HUMAN = 'rx_humain';
 
+  /** Réponse envoyée plus tard via l'API Callbell (le flux ne doit rien afficher). */
+  public const STATE_ASYNC = 'async';
+
   /**
    * @param BotAiTools $tools Outils de l'IA
    * @param BotCommerceService $bot Catalogue et clientes
@@ -29,6 +32,43 @@ class BotAiAgent
     private readonly BotAiTools $tools,
     private readonly BotCommerceService $bot
   ) {
+  }
+
+  /**
+   * Indique si la conversation est actuellement suivie par l'équipe (l'IA
+   * se tait). Une conversation transférée repart à l'IA après la pause
+   * BOT_AI_SESSION_TTL_HOURS.
+   *
+   * @param string $phone Numéro WhatsApp
+   * @return bool True si une conseillère humaine a la main
+   */
+  public function isWithTeam(string $phone): bool
+  {
+    $conversation = BotConversation::query()->where('phone', $this->bot->normalizePhone($phone))->first();
+
+    if (!$conversation || $conversation->status !== BotConversation::STATUS_HUMAN) {
+      return false;
+    }
+
+    $ttl = max(1, (int) config('bot.ai.session_ttl_hours', 12));
+
+    return !$conversation->last_message_at || $conversation->last_message_at->gte(now()->subHours($ttl));
+  }
+
+  /**
+   * Indique si ce texte est la dernière réponse envoyée à la cliente (sert à
+   * écarter une transcription vocale périmée).
+   *
+   * @param string $phone Numéro WhatsApp
+   * @param string $text Texte à comparer
+   * @return bool True si identique à la dernière réponse
+   */
+  public function isLastReply(string $phone, string $text): bool
+  {
+    $conversation = BotConversation::query()->where('phone', $this->bot->normalizePhone($phone))->first();
+    $last = $conversation?->messages()->where('role', 'assistant')->latest('id')->value('content');
+
+    return $last !== null && trim((string) $last) === trim($text);
   }
 
   /**
@@ -82,7 +122,7 @@ class BotAiAgent
         : 'Pouvez-vous reformuler votre demande ? 🙂';
     }
 
-    return $this->reply($conversation, $state, $text);
+    return $this->reply($conversation, $state, $this->whatsappFormat($text));
   }
 
   /**
@@ -229,7 +269,10 @@ class BotAiAgent
 
     $routines = $this->bot->routines()
       ->map(fn (array $r) => '- ' . collect($r['products'])->pluck('name')->implode(' + ')
-        . ' : ' . $r['price_separately']['label'] . ' séparément, kit ' . $r['kit_price']['label'])
+        . ' : ' . $r['price_separately']['label']
+        . ($r['kit_discount_percent'] > 0
+          ? ' séparément, prix kit ' . $r['kit_price']['label'] . ' (-' . $r['kit_discount_percent'] . ' %)'
+          : ' au total (pas de remise kit actuellement : ne parle pas de « prix kit »)'))
       ->implode("\n");
 
     $shipping = collect($shop['shipping_rates'])
@@ -269,6 +312,24 @@ TXT;
       ['type' => 'text', 'text' => $context, 'cache_control' => ['type' => 'ephemeral']],
       ['type' => 'text', 'text' => "# Cette conversation\n\nNuméro WhatsApp : +{$conversation->phone}\n{$profile}\nDate et heure à Kinshasa : " . now('Africa/Kinshasa')->locale('fr')->isoFormat('dddd D MMMM YYYY, HH:mm') . '.'],
     ];
+  }
+
+  /**
+   * Convertit le markdown que l'IA glisse parfois (**gras**, titres, liens)
+   * en mise en forme WhatsApp (*gras*, _italique_, URL en clair).
+   *
+   * @param string $text Texte de l'IA
+   * @return string Texte prêt pour WhatsApp
+   */
+  public function whatsappFormat(string $text): string
+  {
+    $text = preg_replace('/\*\*(.+?)\*\*/su', '*$1*', $text) ?? $text;
+    $text = preg_replace('/__(.+?)__/su', '_$1_', $text) ?? $text;
+    $text = preg_replace('/^[ \t]{0,3}#{1,6}[ \t]+(.+)$/mu', '*$1*', $text) ?? $text;
+    $text = preg_replace('/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/u', '$1 : $2', $text) ?? $text;
+    $text = preg_replace('/^[ \t]*[-*][ \t]+/mu', '• ', $text) ?? $text;
+
+    return trim(preg_replace("/\n{3,}/", "\n\n", $text) ?? $text);
   }
 
   /**

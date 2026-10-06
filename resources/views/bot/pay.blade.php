@@ -85,6 +85,13 @@
             @csrf
             <button type="submit">Payer {{ $fmt->formatOrderAmount($order->total, $order->currency) }} par carte</button>
           </form>
+          @php($otherCurrency = strtoupper((string) $order->currency) === 'USD' ? 'CDF' : 'USD')
+          @php($otherAmount = $fmt->format($fmt->convertFromEur($fmt->convertToEur((float) $order->total, (string) $order->currency), $otherCurrency), $otherCurrency))
+          <form method="POST" action="{{ route('bot.pay.card', ['token' => $token]) }}">
+            @csrf
+            <input type="hidden" name="currency" value="{{ $otherCurrency }}">
+            <button type="submit" class="secondary">Payer plutôt en {{ $otherCurrency === 'USD' ? 'dollars' : 'francs congolais' }} (≈ {{ $otherAmount }})</button>
+          </form>
         </div>
       @else
         <div class="notice err">Le paiement par carte n'est pas disponible pour le moment. Répondez à notre conversation WhatsApp pour payer par Mobile Money.</div>

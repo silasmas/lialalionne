@@ -53,5 +53,13 @@ return [
     'session_ttl_hours' => (int) env('BOT_AI_SESSION_TTL_HOURS', 12),
     'history_limit' => (int) env('BOT_AI_HISTORY_LIMIT', 40),
     'prompt_path' => resource_path('prompts/bot-chez-lia.md'),
+    // Réponse différée : le webhook Callbell (limité à 10 s) reçoit tout de
+    // suite « async », l'IA travaille après la réponse HTTP, puis le flux
+    // récupère sa réponse par le webhook « Résultat » (reply_channel=poll,
+    // défaut) ou elle part par l'API Callbell (reply_channel=api).
+    'async' => (bool) env('BOT_AI_ASYNC', true),
+    'reply_channel' => env('BOT_AI_REPLY_CHANNEL', 'poll'),
+    // Attente maximale d'un appel « Résultat » (sous les 10 s de Callbell).
+    'poll_seconds' => (float) env('BOT_AI_POLL_SECONDS', 8),
   ],
 ];

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Bot\BotCatalogController;
 use App\Http\Controllers\Bot\BotDialogueController;
 use App\Http\Controllers\Bot\BotOrderController;
+use App\Http\Controllers\Bot\BotReplyController;
 use App\Http\Middleware\AuthenticateBot;
 use Illuminate\Support\Facades\Route;
 
@@ -34,3 +35,11 @@ Route::prefix('bot')
 Route::post('/bot/v1/dialogue', BotDialogueController::class)
   ->middleware([AuthenticateBot::class, 'throttle:300,1'])
   ->name('bot.api.dialogue');
+
+// Réponse différée de l'IA (webhook « Résultat » du flux Callbell) et diagnostic.
+Route::post('/bot/v1/resultat', [BotReplyController::class, 'result'])
+  ->middleware([AuthenticateBot::class, 'throttle:600,1'])
+  ->name('bot.api.result');
+Route::get('/bot/v1/diagnostic', [BotReplyController::class, 'diagnostic'])
+  ->middleware([AuthenticateBot::class, 'throttle:60,1'])
+  ->name('bot.api.diagnostic');
