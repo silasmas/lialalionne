@@ -7,10 +7,8 @@ use Illuminate\Support\Facades\Cache;
 /**
  * Boîte des réponses de l'IA en attente de livraison, par numéro.
  *
- * Le job BotAiReplyJob y dépose la réponse ; le webhook « Résultat » du
- * flux Callbell (POST /api/bot/v1/resultat) vient la chercher, en attendant
- * quelques secondes si l'IA travaille encore. Aucune dépendance à l'API
- * Callbell : le message part par le flux, comme une réponse normale.
+ * Conservée pour POST /api/bot/v1/resultat. Le dialogue ne l'utilise plus :
+ * le relais reçoit la réponse de l'IA dans le même appel.
  */
 class BotReplyBox
 {

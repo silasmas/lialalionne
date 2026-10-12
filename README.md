@@ -223,10 +223,10 @@ ShippingZone ──< ShippingRate
 | 9.2 | Clientes reconnues par numéro WhatsApp (tous formats), création de compte à la 1re commande | ✅ |
 | 9.3 | Devis sans création + commande WhatsApp (`source = whatsapp`), remise routine complète configurable | ✅ |
 | 9.4 | Paiement Mobile Money dans WhatsApp (push FlexPay) + lien carte `/payer/{token}` | ✅ |
-| 9.5 | Messages WhatsApp de suivi via Callbell (+ webhook sortant signé optionnel) | ✅ |
+| 9.5 | Messages WhatsApp de suivi via l'API Cloud Meta (+ webhook sortant signé optionnel) | ✅ |
 | 9.6 | Conseillère IA (Claude) : `POST /api/bot/v1/dialogue`, outils, mémoire, journal, transfert humain — consignes dans `resources/prompts/bot-chez-lia.md` | ✅ |
 | 9.7 | Bouton WhatsApp flottant + « Commander sur WhatsApp » sur les fiches produits (numéro dans Paramètres › Boutique) | ✅ |
-| 9.8 | Flux Callbell + numéro WhatsApp de la boutique + clé Claude en production | ⬜ |
+| 9.8 | Relais SDev vers `/api/bot/v1/dialogue` + envoi de suivi via WhatsApp Cloud, en production | ⬜ |
 | 9.9 | Écran admin « Conversations WhatsApp » : journal, raison du transfert, « Rendre à l'IA » | ✅ |
 
 Documentation : `docs/BOT_WHATSAPP.md` · Tests : `php artisan test --filter=Bot`

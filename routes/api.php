@@ -31,12 +31,12 @@ Route::prefix('bot')
     Route::post('/promo/verifier', [BotOrderController::class, 'coupon'])->name('coupon');
   });
 
-// Point d'entrée unique de la conseillère IA (webhook Callbell).
+// Point d'entrée de la conseillère IA (relais SDev, réponse dans le même appel).
 Route::post('/bot/v1/dialogue', BotDialogueController::class)
   ->middleware([AuthenticateBot::class, 'throttle:300,1'])
   ->name('bot.api.dialogue');
 
-// Réponse différée de l'IA (webhook « Résultat » du flux Callbell) et diagnostic.
+// Ancien webhook « Résultat » (compatibilité) et diagnostic.
 Route::post('/bot/v1/resultat', [BotReplyController::class, 'result'])
   ->middleware([AuthenticateBot::class, 'throttle:600,1'])
   ->name('bot.api.result');

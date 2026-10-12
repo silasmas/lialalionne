@@ -43,12 +43,9 @@ return [
         'gateway_check' => env('FLEXPAY_GATEWAY_CHECK', 'https://backend.flexpay.cd/api/rest/v1/check'),
     ],
 
-    'callbell' => [
-        'url' => env('CALLBELL_API_URL', 'https://api.callbell.eu/v1'),
-        'token' => env('CALLBELL_API_TOKEN'),
-        'channel_uuid' => env('CALLBELL_CHANNEL_UUID'),
-        // Équipe à qui assigner une conversation transférée par l'IA.
-        'team_uuid' => env('CALLBELL_TEAM_UUID'),
+    'whatsapp' => [
+        'token' => env('WHATSAPP_ACCESS_TOKEN'),
+        'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
     ],
 
     'anthropic' => [

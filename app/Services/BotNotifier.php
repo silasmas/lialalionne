@@ -12,19 +12,21 @@ use Illuminate\Support\Facades\Log;
 /**
  * Prévient la cliente sur WhatsApp quand le statut d'une commande passée
  * par le bot change (paiement reçu, en préparation, expédiée, livrée,
- * annulée) : message envoyé par Callbell, et webhook sortant signé en option.
+ * annulée) : message envoyé par l'API WhatsApp Cloud, et webhook sortant
+ * signé en option. Un échec d'envoi est journalisé et n'interrompt pas
+ * la commande.
  */
 class BotNotifier
 {
   /**
    * @param BotCommerceService $bot Format des commandes
-   * @param WhatsAppNotifier $whatsapp Envoi Callbell
+   * @param WhatsAppCloud $whatsapp Envoi via l'API Cloud de Meta
    * @param CurrencyService $currency Montants
    * @param SiteSettingsService $settings Adresse de retrait
    */
   public function __construct(
     private readonly BotCommerceService $bot,
-    private readonly WhatsAppNotifier $whatsapp,
+    private readonly WhatsAppCloud $whatsapp,
     private readonly CurrencyService $currency,
     private readonly SiteSettingsService $settings
   ) {

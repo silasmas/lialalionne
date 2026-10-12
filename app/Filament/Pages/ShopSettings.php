@@ -139,7 +139,7 @@ class ShopSettings extends Page
             ->rows(3),
         ]),
       Section::make('WhatsApp (conseillère Chez Lia)')
-        ->description('Numéro relié à Callbell et au bot. Il alimente le bouton flottant et « Commander sur WhatsApp » sur les fiches produits.')
+        ->description('Numéro de la ligne WhatsApp Cloud de la boutique. Il alimente le bouton flottant et « Commander sur WhatsApp » sur les fiches produits.')
         ->schema([
           TextInput::make('whatsapp_number')
             ->label('Numéro WhatsApp de la boutique')

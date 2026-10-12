@@ -11,7 +11,9 @@ use App\Models\Product;
 use App\Models\User;
 use App\Services\SiteSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 /**
@@ -418,7 +420,7 @@ class BotApiTest extends TestCase
   /**
    * @return void
    */
-  public function testAcceptsBotTokenInQueryStringLikeCallbell(): void
+  public function testAcceptsBotTokenInQueryString(): void
   {
     $this->getJson('/api/bot/catalogue?bot_token=' . self::KEY)->assertOk();
   }
@@ -426,10 +428,15 @@ class BotApiTest extends TestCase
   /**
    * @return void
    */
-  public function testSendsWhatsappMessageThroughCallbellWhenOrderIsPaid(): void
+  public function testSendsWhatsappMessageThroughCloudApiWhenOrderIsPaid(): void
   {
-    config(['services.callbell.token' => 'cb-token', 'services.callbell.channel_uuid' => 'chan-1']);
-    Http::fake(['api.callbell.eu/*' => Http::response(['message' => ['uuid' => 'x']])]);
+    config([
+      'services.whatsapp.token' => 'meta-token',
+      'services.whatsapp.phone_number_id' => '123456789',
+    ]);
+    Http::fake([
+      'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.1']]]),
+    ]);
 
     $number = $this->postJson('/api/bot/commandes', [
       'phone' => '0821234567',
@@ -441,11 +448,53 @@ class BotApiTest extends TestCase
 
     Order::query()->where('order_number', $number)->firstOrFail()->update(['status' => OrderStatus::Paid]);
 
-    Http::assertSent(fn ($request) => $request->url() === 'https://api.callbell.eu/v1/messages/send'
-      && $request['to'] === '+243821234567'
-      && $request['channel_uuid'] === 'chan-1'
-      && str_contains($request['content']['text'], $number)
-      && str_contains($request['content']['text'], 'Paiement'));
+    Http::assertSent(fn ($request) => $request->url() === 'https://graph.facebook.com/v21.0/123456789/messages'
+      && $request->hasHeader('Authorization', 'Bearer meta-token')
+      && $request['messaging_product'] === 'whatsapp'
+      && $request['to'] === '243821234567'
+      && $request['type'] === 'text'
+      && $request['text']['preview_url'] === true
+      && str_contains($request['text']['body'], $number)
+      && str_contains($request['text']['body'], 'Paiement'));
+  }
+
+  /**
+   * Un refus Meta (fenêtre de 24 h) est journalisé et la commande reste payée.
+   *
+   * @return void
+   */
+  public function testClosedWhatsappWindowDoesNotBlockAPaidOrder(): void
+  {
+    config([
+      'services.whatsapp.token' => 'meta-token',
+      'services.whatsapp.phone_number_id' => '123456789',
+    ]);
+
+    $logged = [];
+
+    Log::listen(function (MessageLogged $event) use (&$logged): void {
+      $logged[] = $event->message;
+    });
+
+    Http::fake([
+      'graph.facebook.com/*' => Http::response([
+        'error' => ['message' => 'Re-engagement message', 'code' => 131047],
+      ], 400),
+    ]);
+
+    $number = $this->postJson('/api/bot/commandes', [
+      'phone' => '0821234567',
+      'name' => 'Marie K.',
+      'items' => [['sku' => 'CL-SOLO-001']],
+      'fulfillment_type' => 'pickup',
+      'payment_method' => 'mobile_money',
+    ], $this->headers())->json('order.order_number');
+
+    $order = Order::query()->where('order_number', $number)->firstOrFail();
+    $order->update(['status' => OrderStatus::Paid]);
+
+    $this->assertSame(OrderStatus::Paid, $order->fresh()->status);
+    $this->assertTrue(collect($logged)->contains(fn (string $message): bool => str_contains($message, '131047')));
   }
 
   /**

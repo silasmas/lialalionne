@@ -1,7 +1,6 @@
 {{--
-  Bouton WhatsApp flottant : ouvre la conversation avec la conseillère Chez Lia
-  (bot IA via Callbell). Affiché si un numéro est renseigné dans
-  Paramètres > Boutique > WhatsApp.
+  Bouton WhatsApp flottant : ouvre la conversation avec la conseillère Chez Lia.
+  Affiché si un numéro est renseigné dans Paramètres > Boutique > WhatsApp.
 --}}
 @php($whatsappSettings = app(\App\Services\SiteSettingsService::class))
 @if ($whatsappSettings->isWhatsappButtonEnabled())

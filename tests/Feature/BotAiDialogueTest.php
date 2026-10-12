@@ -33,7 +33,6 @@ class BotAiDialogueTest extends TestCase
       'bot.api_key' => self::KEY,
       'bot.kit_discount_percent' => 0,
       'services.anthropic.key' => 'sk-test',
-      'bot.ai.async' => false,
       'services.flexpay.merchant' => null,
       'services.flexpay.token' => null,
     ]);
@@ -180,7 +179,7 @@ class BotAiDialogueTest extends TestCase
       ->assertJsonPath('etat', 'rx_humain')
       ->assertJsonPath('text', 'Je transmets à une conseillère, elle vous répond très vite 💛');
 
-    $this->say('allô ?')->assertJsonPath('etat', 'rx_humain');
+    $this->say('allô ?')->assertExactJson(['ok' => true, 'etat' => 'rx_humain', 'text' => '']);
 
     Http::assertSentCount(2);
     $this->assertSame('Réclamation colis abîmé', BotConversation::query()->first()->handoff_reason);
@@ -221,81 +220,56 @@ class BotAiDialogueTest extends TestCase
   }
 
   /**
+   * La réponse de l'IA revient dans le même appel. Le relais l'affiche :
+   * le site ne la renvoie pas une seconde fois via l'API Cloud.
+   *
    * @return void
    */
-  public function testRepliesLaterThroughCallbellToBeatTheWebhookTimeout(): void
+  public function testReturnsTheAiReplyInTheSameCall(): void
   {
-    config(['bot.ai.async' => true, 'bot.ai.reply_channel' => 'api', 'services.callbell.token' => 'cb-token', 'services.callbell.channel_uuid' => 'chan-1']);
+    config([
+      'services.whatsapp.token' => 'meta-token',
+      'services.whatsapp.phone_number_id' => '123456789',
+    ]);
 
     Http::fake([
-      self::CLAUDE => Http::sequence()
-        ->push($this->tool('t1', 'rechercher_produits', ['recherche' => 'maca']))
-        ->push($this->text('La **Crème Bio Maca Vitesse++** est à 62 700 FC 💛')),
-      'api.callbell.eu/*' => Http::response(['message' => ['uuid' => 'm1']]),
+      self::CLAUDE => Http::response($this->text('La **Crème Bio Maca Vitesse++** est à 62 700 FC 💛')),
+      'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.1']]]),
     ]);
 
     $this->say('vous avez la crème maca ?')
       ->assertOk()
-      ->assertExactJson(['ok' => true, 'etat' => 'async', 'text' => '']);
+      ->assertExactJson([
+        'ok' => true,
+        'etat' => 'ia',
+        'text' => 'La *Crème Bio Maca Vitesse++* est à 62 700 FC 💛',
+      ]);
 
-    Http::assertSent(fn (Request $request) => $request->url() === 'https://api.callbell.eu/v1/messages/send'
-      && $request['to'] === '+243821234567'
-      && $request['channel_uuid'] === 'chan-1'
-      && $request['content']['text'] === 'La *Crème Bio Maca Vitesse++* est à 62 700 FC 💛'
-      && !isset($request['bot_status']));
+    Http::assertNotSent(fn (Request $request) => str_contains($request->url(), 'graph.facebook.com'));
   }
 
   /**
    * @return void
    */
-  public function testAsyncHandoffAssignsTheTeamAndStopsTheCallbellBot(): void
+  public function testResultEndpointStaysAvailableForCompatibility(): void
   {
-    config([
-      'bot.ai.async' => true,
-      'bot.ai.reply_channel' => 'api',
-      'services.callbell.token' => 'cb-token',
-      'services.callbell.channel_uuid' => 'chan-1',
-      'services.callbell.team_uuid' => 'team-lia',
-    ]);
+    Http::fake([self::CLAUDE => Http::response($this->text('Bonjour 💛'))]);
 
-    Http::fake([
-      self::CLAUDE => Http::sequence()
-        ->push($this->tool('t1', 'transferer_humain', ['raison' => 'Demande une conseillère']))
-        ->push($this->text('Je transmets à une conseillère, elle vous répond très vite 💛')),
-      'api.callbell.eu/*' => Http::response(['message' => ['uuid' => 'm1']]),
-    ]);
-
-    $this->say('je veux parler à quelqu\'un')->assertJsonPath('etat', 'async');
-
-    Http::assertSent(fn (Request $request) => str_contains($request->url(), 'callbell')
-      && $request['team_uuid'] === 'team-lia'
-      && $request['bot_status'] === 'bot_end');
-
-    // Conversation à l'équipe : réponse directe rx_humain, sans IA.
-    $this->say('allô ?')->assertJsonPath('etat', 'rx_humain');
-    $this->assertCount(2, Http::recorded(fn (Request $request) => $request->url() === self::CLAUDE));
-  }
-
-  /**
-   * @return void
-   */
-  public function testResultWebhookDeliversTheDeferredReplyWithoutCallbellApi(): void
-  {
-    config(['bot.ai.async' => true, 'services.callbell.token' => null]);
-
-    Http::fake([self::CLAUDE => Http::sequence()
-      ->push($this->tool('t1', 'rechercher_produits', ['recherche' => 'maca']))
-      ->push($this->text('La **Crème Bio Maca Vitesse++** est à 62 700 FC 💛'))]);
-
-    $this->say('vous avez la crème maca ?')->assertExactJson(['ok' => true, 'etat' => 'async', 'text' => '']);
+    $this->say('bonjour')->assertJsonPath('etat', 'ia');
 
     $this->postJson('/api/bot/v1/resultat?bot_token=' . self::KEY, ['phone' => '+243 82 123 4567'])
       ->assertOk()
-      ->assertExactJson(['ok' => true, 'etat' => 'ia', 'text' => 'La *Crème Bio Maca Vitesse++* est à 62 700 FC 💛']);
+      ->assertExactJson(['ok' => true, 'etat' => 'vide', 'text' => '']);
+
+    app(\App\Services\BotAi\BotReplyBox::class)->put('+243 82 123 4567', 'ia', 'Réponse déposée');
+
+    $this->postJson('/api/bot/v1/resultat?bot_token=' . self::KEY, ['phone' => '+243 82 123 4567'])
+      ->assertOk()
+      ->assertExactJson(['ok' => true, 'etat' => 'ia', 'text' => 'Réponse déposée']);
 
     $this->getJson('/api/bot/v1/diagnostic?phone=0821234567&bot_token=' . self::KEY)
       ->assertOk()
-      ->assertJsonPath('config.reply_channel', 'poll')
+      ->assertJsonPath('config.whatsapp_cloud', false)
       ->assertJsonPath('config.anthropic_key', true)
       ->assertJsonPath('conversation.journal.0.role', 'assistant');
   }
@@ -328,20 +302,20 @@ class BotAiDialogueTest extends TestCase
 
     $this->say('bonjour');
 
-    // Photo : la transcription échoue, la variable Callbell garde la dernière réponse.
+    // Photo : la transcription échoue et la variable garde la dernière réponse.
     $this->postJson('/api/bot/v1/dialogue?bot_token=' . self::KEY, [
       'phone' => '+243 82 123 4567',
-      'reponse' => 'https://cdn.callbell.test/photo.jpg',
+      'reponse' => 'https://cdn.example.test/photo.jpg',
       'vocal' => 'Bonjour 💛 Que puis-je faire pour vous ?',
-      'piece_jointe' => 'https://cdn.callbell.test/photo.jpg',
+      'piece_jointe' => 'https://cdn.example.test/photo.jpg',
     ])->assertOk();
 
     // Vocal : l'URL du fichier sert de texte, la transcription est fraîche.
     $this->postJson('/api/bot/v1/dialogue?bot_token=' . self::KEY, [
       'phone' => '+243 82 123 4567',
-      'reponse' => 'https://cdn.callbell.test/audio.ogg',
+      'reponse' => 'https://cdn.example.test/audio.ogg',
       'vocal' => 'je veux la crème maca',
-      'piece_jointe' => 'https://cdn.callbell.test/audio.ogg',
+      'piece_jointe' => 'https://cdn.example.test/audio.ogg',
     ])->assertOk();
 
     $users = BotConversation::query()->firstOrFail()->messages()->where('role', 'user')->orderBy('id')->pluck('content')->all();
@@ -385,6 +359,10 @@ class BotAiDialogueTest extends TestCase
 
       return str_contains($system, 'Tu ne vois pas les images')
         && str_contains($system, 'Toujours le vouvoiement')
+        && str_contains($system, 'Bienvenue chez Lia')
+        && str_contains($system, 'chez Chez Lia')
+        && str_contains($system, 'Lingala naiino')
+        && str_contains($system, 'vimbisa')
         && str_contains($system, 'ne répète jamais la même question')
         && $tools->firstWhere('name', 'payer_mobile_money')['input_schema']['properties']['currency']['enum'] === ['CDF', 'USD']
         && $tools->firstWhere('name', 'lien_paiement_carte')['input_schema']['properties']['currency']['enum'] === ['CDF', 'USD'];

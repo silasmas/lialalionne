@@ -7,8 +7,8 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Protège l'API du bot WhatsApp par une clé partagée (en-tête X-Bot-Key
- * ou paramètre ?bot_token= dans l'URL du webhook Callbell).
+ * Protège l'API du bot WhatsApp par une clé partagée (en-tête X-Bot-Key,
+ * ou paramètre ?bot_token= conservé pour le relais).
  */
 class AuthenticateBot
 {
@@ -29,7 +29,7 @@ class AuthenticateBot
       ], 503);
     }
 
-    // En-tête X-Bot-Key, ou ?bot_token= (webhook Callbell, comme pour Rachoux).
+    // En-tête X-Bot-Key, ou ?bot_token= (conservé).
     $given = (string) ($request->header('X-Bot-Key') ?? $request->query('bot_token', ''));
 
     if ($given === '' || !hash_equals($expected, $given)) {

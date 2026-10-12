@@ -7,20 +7,22 @@ use App\Models\BotConversation;
 use App\Services\BotAi\BotAiAgent;
 use App\Services\BotAi\BotReplyBox;
 use App\Services\BotCommerceService;
-use App\Services\WhatsAppNotifier;
+use App\Services\WhatsAppCloud;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Livraison des réponses différées de l'IA au flux Callbell, et diagnostic.
+ * Compatibilité de l'ancien webhook « Résultat », et diagnostic.
+ * Le dialogue répond désormais dans le même appel ; cet endpoint reste
+ * pour un relais qui irait encore lire la boîte.
  */
 class BotReplyController extends Controller
 {
   /**
-   * POST /api/bot/v1/resultat?bot_token=…  {phone}
+   * POST /api/bot/v1/resultat  {phone}
    *
-   * Attend jusqu'à BOT_AI_POLL_SECONDS (8 s par défaut, sous la limite de
-   * 10 s de Callbell) que la réponse de l'IA soit prête.
+   * Attend jusqu'à BOT_AI_POLL_SECONDS (8 s par défaut) qu'une réponse
+   * déposée dans la boîte soit prête.
    * - {etat: « ia » | « rx_humain », text} : réponse à afficher ;
    * - {etat: « async », text: ""} : toujours en préparation, rappeler ;
    * - {etat: « vide », text: ""} : rien en attente.
@@ -70,11 +72,11 @@ class BotReplyController extends Controller
    *
    * @param Request $request Requête
    * @param BotCommerceService $bot Normalisation du numéro
-   * @param WhatsAppNotifier $whatsapp Configuration Callbell
+   * @param WhatsAppCloud $whatsapp Configuration de l'API Cloud
    * @param BotReplyBox $box Réponses en attente
    * @return JsonResponse Diagnostic
    */
-  public function diagnostic(Request $request, BotCommerceService $bot, WhatsAppNotifier $whatsapp, BotReplyBox $box): JsonResponse
+  public function diagnostic(Request $request, BotCommerceService $bot, WhatsAppCloud $whatsapp, BotReplyBox $box): JsonResponse
   {
     $phone = (string) $request->query('phone', '');
     $conversation = $phone !== ''
@@ -85,10 +87,7 @@ class BotReplyController extends Controller
       'config' => [
         'anthropic_key' => filled(config('services.anthropic.key')),
         'model' => config('bot.ai.model'),
-        'async' => (bool) config('bot.ai.async'),
-        'reply_channel' => config('bot.ai.reply_channel'),
-        'callbell_api' => $whatsapp->isConfigured(),
-        'callbell_team' => filled(config('services.callbell.team_uuid')),
+        'whatsapp_cloud' => $whatsapp->isConfigured(),
       ],
       'conversation' => $conversation ? [
         'status' => $conversation->status,

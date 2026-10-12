@@ -7,7 +7,9 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\SiteSettingsService;
+use BezhanSalleh\FilamentShield\Support\Utils;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -57,7 +59,11 @@ class BotAdminAndWhatsappButtonTest extends TestCase
    */
   public function testAdminCanReviewBotConversations(): void
   {
+    $guard = Utils::getFilamentAuthGuard();
+    Role::findOrCreate(Utils::getSuperAdminName(), $guard);
+
     $admin = User::factory()->create(['is_admin' => true]);
+    $admin->assignRole(Utils::getSuperAdminName());
 
     $conversation = BotConversation::query()->create([
       'phone' => '243821234567',

@@ -73,7 +73,7 @@ class BotConversationsTable
           ->color('success')
           ->visible(fn (BotConversation $record) => $record->status === BotConversation::STATUS_HUMAN)
           ->requiresConfirmation()
-          ->modalDescription('L\'IA reprendra cette conversation au prochain message de la cliente (pensez aussi à redémarrer le robot dans Callbell).')
+          ->modalDescription('L\'IA reprendra cette conversation au prochain message de la cliente.')
           ->action(fn (BotConversation $record) => $record->forceFill([
             'status' => BotConversation::STATUS_BOT,
             'handoff_reason' => null,

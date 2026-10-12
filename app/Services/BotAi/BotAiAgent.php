@@ -9,11 +9,11 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Conseillère IA Chez Lia : reçoit chaque message WhatsApp (relayé par
- * Callbell), le fait comprendre par Claude avec les consignes de la boutique
+ * SDev), le fait comprendre par Claude avec les consignes de la boutique
  * et des outils branchés sur le site, puis renvoie le texte à afficher.
  *
- * Réponse au même format que le bot Rachoux : {etat, text}. L'état
- * « rx_humain » signale à Callbell d'assigner la conversation à l'équipe.
+ * Réponse : {etat, text}. L'état « rx_humain » signale un transfert à
+ * l'équipe. Tant que l'équipe a la main, text est vide.
  */
 class BotAiAgent
 {
@@ -21,7 +21,7 @@ class BotAiAgent
 
   public const STATE_HUMAN = 'rx_humain';
 
-  /** Réponse envoyée plus tard via l'API Callbell (le flux ne doit rien afficher). */
+  /** Conservé pour POST /api/bot/v1/resultat (compatibilité). */
   public const STATE_ASYNC = 'async';
 
   /**
@@ -32,27 +32,6 @@ class BotAiAgent
     private readonly BotAiTools $tools,
     private readonly BotCommerceService $bot
   ) {
-  }
-
-  /**
-   * Indique si la conversation est actuellement suivie par l'équipe (l'IA
-   * se tait). Une conversation transférée repart à l'IA après la pause
-   * BOT_AI_SESSION_TTL_HOURS.
-   *
-   * @param string $phone Numéro WhatsApp
-   * @return bool True si une conseillère humaine a la main
-   */
-  public function isWithTeam(string $phone): bool
-  {
-    $conversation = BotConversation::query()->where('phone', $this->bot->normalizePhone($phone))->first();
-
-    if (!$conversation || $conversation->status !== BotConversation::STATUS_HUMAN) {
-      return false;
-    }
-
-    $ttl = max(1, (int) config('bot.ai.session_ttl_hours', 12));
-
-    return !$conversation->last_message_at || $conversation->last_message_at->gte(now()->subHours($ttl));
   }
 
   /**
@@ -76,7 +55,7 @@ class BotAiAgent
    *
    * @param string $phone Numéro WhatsApp
    * @param string $message Texte reçu (peut être vide : image, vocal…)
-   * @return array{etat: string, text: string} Réponse pour Callbell
+   * @return array{etat: string, text: string} Réponse pour le relais
    */
   public function handle(string $phone, string $message): array
   {
@@ -92,7 +71,7 @@ class BotAiAgent
     $conversation->save();
 
     if ($conversation->status === BotConversation::STATUS_HUMAN) {
-      return $this->reply($conversation, self::STATE_HUMAN, 'Une conseillère a bien votre message et vous répond très vite 💛');
+      return ['etat' => self::STATE_HUMAN, 'text' => ''];
     }
 
     if (!filled(config('services.anthropic.key'))) {
@@ -399,7 +378,7 @@ TXT;
 
   /**
    * @param BotConversation $conversation Conversation
-   * @param string $state État renvoyé à Callbell
+   * @param string $state État renvoyé au relais (ia ou rx_humain)
    * @param string $text Texte à afficher
    * @return array{etat: string, text: string} Réponse
    */
