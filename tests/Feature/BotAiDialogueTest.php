@@ -186,6 +186,43 @@ class BotAiDialogueTest extends TestCase
   }
 
   /**
+   * « Je veux parler à quelqu'un » doit appeler transferer_humain et
+   * renvoyer etat rx_humain, même si le texte de transfert est dans le
+   * même message que l'outil.
+   *
+   * @return void
+   */
+  public function testAskingForSomeoneCallsHandoffAndReturnsHumanState(): void
+  {
+    Http::fake([self::CLAUDE => Http::response([
+      'content' => [
+        ['type' => 'text', 'text' => 'Je transmets à une conseillère, elle vous répond très vite 💛'],
+        ['type' => 'tool_use', 'id' => 't1', 'name' => 'transferer_humain', 'input' => ['raison' => 'La cliente demande une conseillère']],
+      ],
+      'stop_reason' => 'end_turn',
+    ])]);
+
+    $this->say('je veux parler à quelqu\'un')
+      ->assertOk()
+      ->assertJsonPath('etat', 'rx_humain')
+      ->assertJsonPath('text', 'Je transmets à une conseillère, elle vous répond très vite 💛');
+
+    $conversation = BotConversation::query()->firstOrFail();
+    $this->assertSame(BotConversation::STATUS_HUMAN, $conversation->status);
+    $this->assertSame(
+      ['user', 'tool', 'assistant'],
+      $conversation->messages()->orderBy('id')->pluck('role')->all()
+    );
+    $this->assertSame('transferer_humain', $conversation->messages()->where('role', 'tool')->value('content'));
+
+    Http::assertSent(function (Request $request) {
+      $system = collect($request['system'])->pluck('text')->implode("\n");
+
+      return str_contains($system, 'N\'annonce JAMAIS un transfert sans avoir appelé `transferer_humain`');
+    });
+  }
+
+  /**
    * @return void
    */
   public function testFallsBackToHumanWithoutKeyOrOnApiError(): void

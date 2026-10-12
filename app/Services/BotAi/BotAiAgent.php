@@ -82,7 +82,7 @@ class BotAiAgent
     $history[] = ['role' => 'user', 'content' => $userText];
 
     try {
-      [$history, $text] = $this->converse($conversation, $history);
+      [$history, $text, $handedOff] = $this->converse($conversation, $history);
     } catch (\Throwable $exception) {
       Log::error('Bot IA : échec de l\'appel à Claude', ['phone' => $normalized, 'error' => $exception->getMessage()]);
 
@@ -90,10 +90,17 @@ class BotAiAgent
     }
 
     $conversation->refresh();
+
+    if ($handedOff) {
+      $conversation->status = BotConversation::STATUS_HUMAN;
+    }
+
     $conversation->history = $this->trim($history);
     $conversation->save();
 
-    $state = $conversation->status === BotConversation::STATUS_HUMAN ? self::STATE_HUMAN : self::STATE_AI;
+    $state = ($handedOff || $conversation->status === BotConversation::STATUS_HUMAN)
+      ? self::STATE_HUMAN
+      : self::STATE_AI;
 
     if ($text === '') {
       $text = $state === self::STATE_HUMAN
@@ -109,12 +116,13 @@ class BotAiAgent
    *
    * @param BotConversation $conversation Conversation
    * @param list<array<string, mixed>> $history Historique au format API
-   * @return array{0: list<array<string, mixed>>, 1: string} Historique et texte final
+   * @return array{0: list<array<string, mixed>>, 1: string, 2: bool} Historique, texte final, transfert demandé
    */
   private function converse(BotConversation $conversation, array $history): array
   {
     $rounds = max(1, (int) config('bot.ai.max_tool_rounds', 6));
     $system = $this->systemPrompt($conversation);
+    $handedOff = false;
 
     for ($round = 0; $round <= $rounds; $round++) {
       $response = $this->callClaude($system, $history, $round < $rounds);
@@ -122,22 +130,23 @@ class BotAiAgent
       $history[] = ['role' => 'assistant', 'content' => $content];
 
       $toolUses = array_values(array_filter($content, fn ($block) => ($block['type'] ?? null) === 'tool_use'));
+      $text = trim(collect($content)->where('type', 'text')->pluck('text')->implode("\n"));
 
-      if (($response['stop_reason'] ?? null) !== 'tool_use' || $toolUses === []) {
-        $text = collect($content)
-          ->where('type', 'text')
-          ->pluck('text')
-          ->implode("\n");
-
-        return [$history, trim($text)];
+      if ($toolUses === []) {
+        return [$history, $text, $handedOff];
       }
 
       $results = [];
 
       foreach ($toolUses as $toolUse) {
-        $outcome = $this->tools->execute((string) $toolUse['name'], (array) ($toolUse['input'] ?? []), $conversation);
+        $name = (string) $toolUse['name'];
+        $outcome = $this->tools->execute($name, (array) ($toolUse['input'] ?? []), $conversation);
 
-        $conversation->log('tool', $toolUse['name'], [
+        if ($name === 'transferer_humain' && !$outcome['is_error']) {
+          $handedOff = true;
+        }
+
+        $conversation->log('tool', $name, [
           'input' => $toolUse['input'] ?? [],
           'is_error' => $outcome['is_error'],
           'result' => mb_substr((string) json_encode($outcome['result'], JSON_UNESCAPED_UNICODE), 0, 2000),
@@ -152,9 +161,15 @@ class BotAiAgent
       }
 
       $history[] = ['role' => 'user', 'content' => $results];
+
+      // Le modèle a déjà le texte du transfert dans le même message : on le
+      // renvoie, avec etat rx_humain dès que l'outil a été exécuté.
+      if (($response['stop_reason'] ?? null) !== 'tool_use' && $text !== '') {
+        return [$history, $text, $handedOff];
+      }
     }
 
-    return [$history, ''];
+    return [$history, '', $handedOff];
   }
 
   /**

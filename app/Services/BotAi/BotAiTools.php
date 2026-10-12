@@ -173,7 +173,7 @@ class BotAiTools
       ],
       [
         'name' => 'transferer_humain',
-        'description' => 'Transfère la conversation à une conseillère humaine (demande de la cliente, réclamation, santé, problème non résolu, grosse commande).',
+        'description' => 'Transfère la conversation à une conseillère humaine. Obligatoire dès que la cliente demande un humain, ou pour une réclamation, une question de santé, un problème non résolu ou une grosse commande. Sans cet appel, le transfert n\'a pas lieu : ne l\'annonce jamais dans le texte seul.',
         'input_schema' => [
           'type' => 'object',
           'properties' => [
