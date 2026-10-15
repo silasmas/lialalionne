@@ -71,7 +71,7 @@ class BotOrderController extends Controller
       'address' => ['nullable', 'string', 'max:255'],
       'commune' => ['nullable', 'string', 'max:120'],
       'city' => ['nullable', 'string', 'max:120'],
-      'payment_method' => ['required', 'in:mobile_money,card,cod'],
+      'payment_method' => ['required', 'in:mobile_money,card,cod,store'],
       'coupon_code' => ['nullable', 'string', 'max:50'],
       'currency' => ['nullable', 'in:CDF,USD'],
       'notes' => ['nullable', 'string', 'max:500'],

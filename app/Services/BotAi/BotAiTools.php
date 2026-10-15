@@ -108,7 +108,11 @@ class BotAiTools
             'address' => ['type' => 'string', 'description' => 'Adresse de livraison (obligatoire si delivery).'],
             'commune' => ['type' => 'string'],
             'city' => ['type' => 'string', 'description' => 'Par défaut Kinshasa.'],
-            'payment_method' => ['type' => 'string', 'enum' => ['mobile_money', 'card', 'cod']],
+            'payment_method' => [
+              'type' => 'string',
+              'enum' => ['mobile_money', 'card', 'cod', 'store'],
+              'description' => 'store = payer en boutique au retrait (commande mise de côté) : uniquement avec fulfillment_type = pickup.',
+            ],
             'coupon_code' => ['type' => 'string'],
             'currency' => ['type' => 'string', 'enum' => ['CDF', 'USD']],
             'notes' => ['type' => 'string', 'description' => 'Consigne de livraison éventuelle.'],
@@ -294,9 +298,13 @@ class BotAiTools
     $conversation->user_id = $order->user_id;
     $conversation->save();
 
+    $shop = $this->bot->shopInfo()['pickup'];
+
     return [
       'commande' => $this->bot->orderPayload($order),
-      'etape_suivante' => match ($input['payment_method'] ?? 'mobile_money') {
+      'etape_suivante' => $this->bot->isInStorePayment($order)
+        ? 'Commande réservée, à payer en boutique : l\'équipe est prévenue et met les produits de côté. Dis-lui que sa commande est réservée et mise de côté, qu\'on l\'attend à la boutique (' . trim(($shop['store_name'] ?? '') . ' — ' . ($shop['address'] ?? ''), ' —') . '), le montant exact à régler sur place, son numéro de commande, et qu\'elle recevra un message ici dès que tout est prêt.'
+        : match ($input['payment_method'] ?? 'mobile_money') {
         'cod' => 'Commande confirmée, paiement à la livraison : rappelle le montant.',
         'card' => 'Appelle lien_paiement_carte et envoie le lien.',
         default => 'Demande quel numéro débiter (ce numéro WhatsApp ou un autre), puis payer_mobile_money.',

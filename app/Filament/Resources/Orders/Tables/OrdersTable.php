@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Orders\Tables;
 
 use App\Enums\OrderStatus;
+use App\Filament\Resources\Orders\Actions\ReadyForPickupAction;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Services\CurrencyService;
 use Filament\Actions\BulkActionGroup;
@@ -71,6 +72,7 @@ class OrdersTable
           )),
       ])
       ->recordActions([
+        ReadyForPickupAction::make(),
         EditAction::make(),
       ])
       ->recordUrl(fn ($record) => OrderResource::getUrl('edit', ['record' => $record]))

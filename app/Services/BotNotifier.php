@@ -66,6 +66,70 @@ class BotNotifier
   }
 
   /**
+   * Commande « payer en boutique » : prévient l'agent pour qu'il mette les
+   * produits de côté. Texte libre si la fenêtre de 24 h est ouverte avec
+   * l'agent, sinon modèle WhatsApp (BOT_TEAM_ORDER_TEMPLATE) s'il existe.
+   *
+   * @param Order $order Commande créée
+   * @return void
+   */
+  public function inStoreOrderPlaced(Order $order): void
+  {
+    $team = $this->settings->teamWhatsappNumber();
+
+    if (!$team) {
+      Log::warning('Commande à mettre de côté : aucun numéro WhatsApp d\'agent (Paramètres boutique)', [
+        'order' => $order->order_number,
+      ]);
+
+      return;
+    }
+
+    DB::afterCommit(function () use ($order, $team): void {
+      $fresh = $order->fresh(['items', 'user', 'addresses']);
+
+      if (!$fresh) {
+        return;
+      }
+
+      $customer = trim((string) $fresh->user?->name) ?: 'Cliente';
+      $phone = $fresh->addresses->first()?->phone ?? $fresh->user?->phone;
+      $total = $this->currency->formatOrderAmount((float) $fresh->total, $fresh->currency);
+      $items = $fresh->items
+        ->map(fn ($item) => '• ' . (int) $item->quantity . ' × ' . $item->product_name . ($item->variant_name ? ' (' . $item->variant_name . ')' : ''))
+        ->implode("\n");
+
+      $sent = $this->whatsapp->sendText($team, implode("\n", [
+        "🛍️ Nouvelle commande WhatsApp à *mettre de côté* : *{$fresh->order_number}*",
+        "Cliente : {$customer}" . ($phone ? " ({$phone})" : ''),
+        'Articles :',
+        $items,
+        "À encaisser au retrait : *{$total}*",
+        '',
+        'Quand c\'est prêt, cliquez « Prête au retrait » sur la commande : la cliente est prévenue automatiquement.',
+        $this->adminOrderUrl($fresh),
+      ]));
+
+      $template = (string) config('bot.team_order_template');
+
+      if (!$sent && $template !== '') {
+        $sent = $this->whatsapp->sendTemplate($team, $template, (string) config('bot.team_order_template_lang', 'fr'), [
+          $fresh->order_number,
+          $customer . ($phone ? " ({$phone})" : ''),
+          str_replace("\n", ' ; ', $items),
+          $total,
+        ]);
+      }
+
+      if (!$sent) {
+        Log::warning('Agent non prévenu sur WhatsApp pour la commande à mettre de côté', [
+          'order' => $fresh->order_number,
+        ]);
+      }
+    });
+  }
+
+  /**
    * Texte WhatsApp correspondant au nouveau statut.
    *
    * @param Order $order Commande à jour
@@ -76,6 +140,20 @@ class BotNotifier
     $number = '*' . $order->order_number . '*';
     $total = $this->currency->formatOrderAmount((float) $order->total, $order->currency);
     $isPickup = $order->fulfillment_type === 'pickup';
+    $inStore = $this->bot->isInStorePayment($order);
+    $store = $this->settings->get('pickup_store_address', 'à la boutique');
+
+    if ($inStore) {
+      return match ($order->status) {
+        // La conseillère a déjà confirmé la réservation dans la conversation.
+        OrderStatus::Processing => null,
+        OrderStatus::Shipped => "🛍️ Votre commande {$number} est prête et mise de côté pour vous ! Nous vous attendons à la boutique : {$store}\nMontant à régler sur place : *{$total}*. Donnez simplement votre numéro de commande en arrivant 💛",
+        OrderStatus::Paid => "✅ Paiement de {$total} bien reçu en boutique pour la commande {$number}. Merci pour votre confiance 💛",
+        OrderStatus::Delivered => "🎉 Merci d'être passée ! Votre commande {$number} vous a bien été remise. Une question sur l'utilisation de vos produits ? Écrivez-nous ici.",
+        OrderStatus::Cancelled => "Votre commande {$number} a été annulée. Si c'est une erreur, répondez simplement à ce message.",
+        default => null,
+      };
+    }
 
     return match ($order->status) {
       OrderStatus::Paid => "✅ Paiement de {$total} bien reçu ! Votre commande {$number} est confirmée. Nous la préparons avec soin 💛",
@@ -83,12 +161,23 @@ class BotNotifier
         ? "👍 Votre commande {$number} est en préparation. Vous réglerez {$total} " . ($isPickup ? 'au retrait.' : 'à la livraison.')
         : "Votre commande {$number} est en préparation 🧴",
       OrderStatus::Shipped => $isPickup
-        ? "🛍️ Votre commande {$number} est prête ! Vous pouvez venir la retirer : " . $this->settings->get('pickup_store_address', 'à la boutique') . '.'
+        ? "🛍️ Votre commande {$number} est prête ! Vous pouvez venir la retirer : {$store}."
         : "🚚 Votre commande {$number} est en route !" . ($order->tracking_number ? " Suivi : {$order->tracking_number}." : ''),
       OrderStatus::Delivered => "🎉 Votre commande {$number} a été livrée. Merci pour votre confiance ! Si vous avez une question sur l'utilisation de vos produits, écrivez-nous ici.",
       OrderStatus::Cancelled => "Votre commande {$number} a été annulée. Si c'est une erreur, répondez simplement à ce message.",
       default => null,
     };
+  }
+
+  /**
+   * Lien de la commande dans l'administration.
+   *
+   * @param Order $order Commande
+   * @return string URL /admin/orders/{id}/edit
+   */
+  private function adminOrderUrl(Order $order): string
+  {
+    return url('/admin/orders/' . $order->getKey() . '/edit');
   }
 
   /**

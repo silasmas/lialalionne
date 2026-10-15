@@ -137,12 +137,22 @@ class ShopSettings extends Page
           Textarea::make('pickup_store_address')
             ->label('Adresse / horaires')
             ->rows(3),
+          Toggle::make('payment_in_store_enabled')
+            ->label('Commander sur WhatsApp et payer en boutique au retrait')
+            ->helperText('La commande est réservée (stock déduit), l\'agent est prévenu sur WhatsApp pour la mettre de côté, et la cliente paie sur place.')
+            ->default(true),
         ]),
       Section::make('WhatsApp (conseillère Chez Lia)')
         ->description('Numéro de la ligne WhatsApp Cloud de la boutique. Il alimente le bouton flottant et « Commander sur WhatsApp » sur les fiches produits.')
         ->schema([
           TextInput::make('whatsapp_number')
             ->label('Numéro WhatsApp de la boutique')
+            ->placeholder('+243 81 234 5678')
+            ->tel()
+            ->maxLength(20),
+          TextInput::make('whatsapp_team_number')
+            ->label('WhatsApp de l\'agent qui prépare les commandes')
+            ->helperText('Reçoit un message à chaque commande « payer en boutique » pour mettre les produits de côté.')
             ->placeholder('+243 81 234 5678')
             ->tel()
             ->maxLength(20),

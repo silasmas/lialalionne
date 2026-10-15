@@ -36,6 +36,15 @@ return [
   'notify_secret' => env('BOT_NOTIFY_SECRET'),
 
   /*
+  | Modèle WhatsApp (catégorie Utilité) envoyé à l'agent pour une commande
+  | « payer en boutique » quand il n'a pas écrit au numéro depuis 24 h.
+  | Paramètres du corps : {{1}} n° de commande, {{2}} cliente, {{3}} articles,
+  | {{4}} montant. Vide = texte libre seulement.
+  */
+  'team_order_template' => env('BOT_TEAM_ORDER_TEMPLATE'),
+  'team_order_template_lang' => env('BOT_TEAM_ORDER_TEMPLATE_LANG', 'fr'),
+
+  /*
   | Pays de livraison utilisé pour le calcul des tarifs (code ISO).
   */
   'country' => env('BOT_COUNTRY', 'CD'),

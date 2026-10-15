@@ -33,6 +33,11 @@ class BotCommerceService
   public const PAYMENT_CURRENCIES = ['CDF', 'USD'];
 
   /**
+   * Code bot du paiement sur place au retrait (commande mise de côté).
+   */
+  public const IN_STORE = 'store';
+
+  /**
    * @param CurrencyService $currency Conversion des prix
    * @param ShippingService $shipping Tarifs de livraison
    * @param CouponService $coupons Codes promo
@@ -274,6 +279,11 @@ class BotCommerceService
           'code' => $this->paymentCode($method),
           'label' => $method->label(),
         ])
+        ->when($this->settings->isInStorePaymentEnabled(), fn (Collection $methods) => $methods->push([
+          'code' => self::IN_STORE,
+          'label' => 'Paiement en boutique au retrait (commande mise de côté)',
+          'condition' => 'Uniquement avec le retrait en boutique (fulfillment_type = pickup).',
+        ]))
         ->values()
         ->all(),
       'kit_discount_percent' => $this->kitDiscountPercent(),
@@ -443,7 +453,7 @@ class BotCommerceService
     $user = $this->findOrCreateCustomer((string) $data['phone'], $data['name'] ?? null);
     $currency = $this->resolveCurrency($data['currency'] ?? null);
     $fulfillment = $this->resolveFulfillment($data['fulfillment_type'] ?? 'delivery');
-    $method = $this->resolvePaymentMethod((string) ($data['payment_method'] ?? 'mobile_money'));
+    $method = $this->resolvePaymentMethod((string) ($data['payment_method'] ?? 'mobile_money'), $fulfillment);
     $lines = $this->resolveLines($data['items']);
 
     if ($fulfillment === 'delivery' && empty($data['address'])) {
@@ -515,7 +525,13 @@ class BotCommerceService
       $this->payments->initiate($order->fresh(['payment']));
     }
 
-    return $order->fresh(['items', 'payment', 'addresses', 'user']);
+    $order = $order->fresh(['items', 'payment', 'addresses', 'user']);
+
+    if ($this->isInStorePayment($order)) {
+      app(BotNotifier::class)->inStoreOrderPlaced($order);
+    }
+
+    return $order;
   }
 
   /**
@@ -560,8 +576,12 @@ class BotCommerceService
       'order_number' => $order->order_number,
       'status' => $order->status?->value,
       'status_label' => $order->status?->label(),
-      'payment_method' => $order->payment_method ? $this->paymentCode($order->payment_method) : null,
-      'payment_method_label' => $order->payment_method?->label(),
+      'payment_method' => $this->isInStorePayment($order)
+        ? self::IN_STORE
+        : ($order->payment_method ? $this->paymentCode($order->payment_method) : null),
+      'payment_method_label' => $this->isInStorePayment($order)
+        ? 'Paiement en boutique'
+        : $order->payment_method?->label(),
       'payment_status' => $order->payment?->status?->value,
       'fulfillment_type' => $order->fulfillment_type,
       'source' => $order->source,
@@ -848,7 +868,9 @@ class BotCommerceService
 
     if ($order->payment_method === PaymentMethod::Cod) {
       throw ValidationException::withMessages([
-        'order' => 'Cette commande est réglée à la livraison.',
+        'order' => $this->isInStorePayment($order)
+          ? 'Cette commande se règle en boutique, au retrait.'
+          : 'Cette commande est réglée à la livraison.',
       ]);
     }
   }
@@ -1016,11 +1038,39 @@ class BotCommerceService
   }
 
   /**
-   * @param string $code mobile_money, card ou cod
+   * Commande à régler sur place au retrait (paiement en boutique).
+   *
+   * @param Order $order Commande
+   * @return bool True si retrait + paiement sur place
+   */
+  public function isInStorePayment(Order $order): bool
+  {
+    return $order->fulfillment_type === 'pickup' && $order->payment_method === PaymentMethod::Cod;
+  }
+
+  /**
+   * @param string $code mobile_money, card, cod ou store (paiement en boutique)
+   * @param string $fulfillment delivery ou pickup
    * @return PaymentMethod Méthode activée
    */
-  private function resolvePaymentMethod(string $code): PaymentMethod
+  private function resolvePaymentMethod(string $code, string $fulfillment): PaymentMethod
   {
+    if ($code === self::IN_STORE || ($code === 'cod' && $fulfillment === 'pickup' && $this->settings->isInStorePaymentEnabled())) {
+      if ($fulfillment !== 'pickup') {
+        throw ValidationException::withMessages([
+          'payment_method' => 'Le paiement en boutique se fait au retrait : choisir le retrait en boutique (fulfillment_type = pickup), ou un autre moyen de paiement pour une livraison.',
+        ]);
+      }
+
+      if (!$this->settings->isInStorePaymentEnabled()) {
+        throw ValidationException::withMessages([
+          'payment_method' => 'Le paiement en boutique n\'est pas disponible.',
+        ]);
+      }
+
+      return PaymentMethod::Cod;
+    }
+
     $method = match ($code) {
       'card' => PaymentMethod::Stripe,
       'cod' => PaymentMethod::Cod,

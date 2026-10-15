@@ -548,4 +548,88 @@ class BotApiTest extends TestCase
         && $request->header('X-Bot-Signature')[0] === hash_hmac('sha256', $body, 'secret');
     });
   }
+  /**
+   * Payer en boutique : commande réservée, agent prévenu, cliente prévenue quand c'est prêt.
+   *
+   * @return void
+   */
+  public function testInStorePaymentReservesTheOrderAndNotifiesTheAgent(): void
+  {
+    config([
+      'services.whatsapp.token' => 'meta-token',
+      'services.whatsapp.phone_number_id' => '123456789',
+    ]);
+    app(SiteSettingsService::class)->setMany([
+      'whatsapp_team_number' => '+243 81 111 2222',
+      'pickup_store_address' => 'Av. du Commerce 12, Gombe',
+    ]);
+    Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.1']]])]);
+
+    $this->getJson('/api/bot/boutique', $this->headers())
+      ->assertJsonFragment(['code' => 'store']);
+
+    $response = $this->postJson('/api/bot/commandes', [
+      'phone' => '0821234567',
+      'name' => 'Marie K.',
+      'items' => [['sku' => 'CL-SOLO-001', 'quantity' => 2]],
+      'fulfillment_type' => 'pickup',
+      'payment_method' => 'store',
+    ], $this->headers())->assertCreated()
+      ->assertJsonPath('order.payment_method', 'store')
+      ->assertJsonPath('order.status', OrderStatus::Processing->value)
+      ->assertJsonPath('order.card_payment_url', null);
+
+    $number = $response->json('order.order_number');
+    $this->assertSame(8, $this->products['CL-SOLO-001']->fresh()->stock);
+
+    Http::assertSent(fn ($request) => $request['to'] === '243811112222'
+      && str_contains($request['text']['body'], $number)
+      && str_contains($request['text']['body'], 'mettre de côté')
+      && str_contains($request['text']['body'], '2 × Produit seul'));
+    // La conseillère a déjà confirmé : pas de second message à la cliente.
+    Http::assertNotSent(fn ($request) => $request['to'] === '243821234567');
+
+    Order::query()->where('order_number', $number)->firstOrFail()
+      ->update(['status' => OrderStatus::Shipped]);
+
+    Http::assertSent(fn ($request) => $request['to'] === '243821234567'
+      && str_contains($request['text']['body'], 'prête et mise de côté')
+      && str_contains($request['text']['body'], 'Av. du Commerce 12, Gombe')
+      && str_contains($request['text']['body'], 'à régler sur place'));
+  }
+
+  /**
+   * @return void
+   */
+  public function testInStorePaymentRequiresPickup(): void
+  {
+    $this->postJson('/api/bot/commandes', [
+      'phone' => '0821234567',
+      'name' => 'Marie K.',
+      'items' => [['sku' => 'CL-SOLO-001']],
+      'fulfillment_type' => 'delivery',
+      'address' => '12 av. X',
+      'payment_method' => 'store',
+    ], $this->headers())->assertUnprocessable()
+      ->assertJsonValidationErrors('payment_method');
+  }
+
+  /**
+   * @return void
+   */
+  public function testInStorePaymentCanBeSwitchedOff(): void
+  {
+    app(SiteSettingsService::class)->setMany(['payment_in_store_enabled' => false]);
+
+    $this->getJson('/api/bot/boutique', $this->headers())
+      ->assertJsonMissing(['code' => 'store']);
+
+    $this->postJson('/api/bot/commandes', [
+      'phone' => '0821234567',
+      'name' => 'Marie K.',
+      'items' => [['sku' => 'CL-SOLO-001']],
+      'fulfillment_type' => 'pickup',
+      'payment_method' => 'store',
+    ], $this->headers())->assertUnprocessable();
+  }
 }

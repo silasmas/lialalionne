@@ -32,7 +32,9 @@ class SiteSettingsService
     'pickup_in_store_enabled' => true,
     'pickup_store_name' => 'Boutique Lialalionne',
     'pickup_store_address' => 'Kinshasa, RDC — retrait sur place du lundi au samedi.',
+    'payment_in_store_enabled' => true,
     'whatsapp_number' => null,
+    'whatsapp_team_number' => null,
     'whatsapp_button_enabled' => true,
     'coming_soon_enabled' => false,
     'coming_soon_title' => 'Lialalionne arrive bientôt',
@@ -205,6 +207,27 @@ class SiteSettingsService
   }
 
   /**
+   * Indique si la cliente peut commander puis payer sur place au retrait
+   * (commande mise de côté). Nécessite le retrait en boutique.
+   *
+   * @return bool True si activé
+   */
+  public function isInStorePaymentEnabled(): bool
+  {
+    return $this->isPickupEnabled() && (bool) $this->get('payment_in_store_enabled', true);
+  }
+
+  /**
+   * Numéro WhatsApp de l'agent qui met les commandes de côté (243…).
+   *
+   * @return string|null Numéro normalisé
+   */
+  public function teamWhatsappNumber(): ?string
+  {
+    return $this->normalizeWhatsapp((string) $this->get('whatsapp_team_number', ''));
+  }
+
+  /**
    * Numéro WhatsApp de la boutique au format international sans « + »
    * (ex. 243812345678), ou null s'il n'est pas renseigné.
    *
@@ -212,7 +235,16 @@ class SiteSettingsService
    */
   public function whatsappNumber(): ?string
   {
-    $digits = preg_replace('/\D+/', '', (string) $this->get('whatsapp_number', '')) ?? '';
+    return $this->normalizeWhatsapp((string) $this->get('whatsapp_number', ''));
+  }
+
+  /**
+   * @param string $raw Numéro saisi
+   * @return string|null Numéro 243… ou null
+   */
+  private function normalizeWhatsapp(string $raw): ?string
+  {
+    $digits = preg_replace('/\D+/', '', $raw) ?? '';
 
     if ($digits === '') {
       return null;
