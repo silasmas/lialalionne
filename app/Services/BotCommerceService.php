@@ -804,6 +804,56 @@ class BotCommerceService
   }
 
   /**
+   * Passe une commande non payée en « payer en boutique » : retrait sans
+   * frais de livraison, produits réservés (stock déduit), agent prévenu.
+   *
+   * @param Order $order Commande en attente de paiement
+   * @return Order Commande réservée
+   */
+  public function switchToInStorePayment(Order $order): Order
+  {
+    if ($this->isInStorePayment($order)) {
+      return $order->fresh(['items', 'payment', 'addresses', 'user']);
+    }
+
+    $this->ensurePayable($order);
+
+    if (!$this->settings->isInStorePaymentEnabled()) {
+      throw ValidationException::withMessages([
+        'payment_method' => 'Le paiement en boutique n\'est pas disponible.',
+      ]);
+    }
+
+    DB::transaction(function () use ($order): void {
+      $total = round(
+        max(0, (float) $order->subtotal + (float) $order->tax_amount - (float) $order->discount_amount),
+        $order->currency === 'CDF' ? 0 : 2
+      );
+
+      $order->update([
+        'fulfillment_type' => 'pickup',
+        'shipping_amount' => 0,
+        'total' => $total,
+        'payment_method' => PaymentMethod::Cod,
+        'payment_token' => null,
+        'payment_token_expires_at' => null,
+      ]);
+
+      $order->payment?->update([
+        'method' => PaymentMethod::Cod,
+        'amount' => $total,
+        'metadata' => array_merge($order->payment->metadata ?? [], ['switched_to_store_at' => now()->toIso8601String()]),
+      ]);
+    });
+
+    $this->payments->initiate($order->fresh(['payment']));
+    $order = $order->fresh(['items', 'payment', 'addresses', 'user']);
+    app(BotNotifier::class)->inStoreOrderPlaced($order);
+
+    return $order;
+  }
+
+  /**
    * Devine l'opérateur Mobile Money à partir du préfixe.
    *
    * @param string $normalized Numéro 243XXXXXXXXX

@@ -3,6 +3,11 @@
 namespace App\Filament\Resources\Orders\Tables;
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
+use App\Models\Order;
+use App\Services\BotCommerceService;
+use Filament\Tables\Filters\Filter;
+use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\Orders\Actions\ReadyForPickupAction;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Services\CurrencyService;
@@ -49,6 +54,21 @@ class OrdersTable
             OrderStatus::Delivered => 'success',
             OrderStatus::Cancelled => 'danger',
           }),
+        TextColumn::make('payment_method')
+          ->label('Paiement')
+          ->badge()
+          ->state(fn (Order $record): string => app(BotCommerceService::class)->isInStorePayment($record)
+            ? 'En boutique'
+            : ($record->payment_method?->label() ?? '—'))
+          ->color(fn (string $state): string => $state === 'En boutique' ? 'warning' : 'gray'),
+        TextColumn::make('fulfillment_type')
+          ->label('Remise')
+          ->formatStateUsing(fn (?string $state): string => $state === 'pickup' ? 'Retrait boutique' : 'Livraison')
+          ->toggleable(),
+        TextColumn::make('source')
+          ->label('Canal')
+          ->formatStateUsing(fn (?string $state): string => $state === 'whatsapp' ? 'WhatsApp' : 'Site')
+          ->toggleable(),
         TextColumn::make('total')
           ->label('Total')
           ->formatStateUsing(fn ($state, $record) => app(CurrencyService::class)->formatOrderAmount((float) $state, $record->currency))
@@ -65,6 +85,12 @@ class OrdersTable
           ->sortable(),
       ])
       ->filters([
+        Filter::make('to_set_aside')
+          ->label('À mettre de côté (payer en boutique)')
+          ->query(fn (Builder $query): Builder => $query
+            ->where('fulfillment_type', 'pickup')
+            ->where('payment_method', PaymentMethod::Cod->value)
+            ->whereIn('status', [OrderStatus::Pending->value, OrderStatus::Processing->value])),
         SelectFilter::make('status')
           ->label('Statut')
           ->options(collect(OrderStatus::cases())->mapWithKeys(

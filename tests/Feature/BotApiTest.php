@@ -632,4 +632,36 @@ class BotApiTest extends TestCase
       'payment_method' => 'store',
     ], $this->headers())->assertUnprocessable();
   }
+  /**
+   * Une commande Mobile Money déjà créée peut passer en paiement en boutique.
+   *
+   * @return void
+   */
+  public function testExistingOrderCanSwitchToInStorePayment(): void
+  {
+    config([
+      'services.whatsapp.token' => 'meta-token',
+      'services.whatsapp.phone_number_id' => '123456789',
+    ]);
+    app(SiteSettingsService::class)->setMany(['whatsapp_team_number' => '0811112222']);
+    Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.1']]])]);
+
+    $number = $this->postJson('/api/bot/commandes', [
+      'phone' => '0821234567',
+      'name' => 'Marie K.',
+      'items' => [['sku' => 'CL-SOLO-001']],
+      'fulfillment_type' => 'pickup',
+      'payment_method' => 'mobile_money',
+    ], $this->headers())->json('order.order_number');
+
+    $bot = app(\App\Services\BotCommerceService::class);
+    $order = $bot->switchToInStorePayment($bot->findOrderForPhone($number, '0821234567'));
+
+    $this->assertSame(OrderStatus::Processing, $order->status);
+    $this->assertSame('store', $bot->orderPayload($order)['payment_method']);
+    $this->assertNull($bot->orderPayload($order)['card_payment_url']);
+    $this->assertSame(9, $this->products['CL-SOLO-001']->fresh()->stock);
+    Http::assertSent(fn ($request) => $request['to'] === '243811112222'
+      && str_contains($request['text']['body'], $number));
+  }
 }

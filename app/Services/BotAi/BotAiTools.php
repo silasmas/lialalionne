@@ -156,6 +156,15 @@ class BotAiTools
         ],
       ],
       [
+        'name' => 'payer_en_boutique',
+        'description' => 'Pour une commande DÉJÀ créée et pas encore payée : la passe en « payer en boutique au retrait » (retrait sans frais de livraison, produits réservés, équipe prévenue). Obligatoire dès que la cliente veut retirer et payer sur place une commande existante : sans cet appel, rien n\'est réservé.',
+        'input_schema' => [
+          'type' => 'object',
+          'properties' => ['order_number' => $orderNumber],
+          'required' => ['order_number'],
+        ],
+      ],
+      [
         'name' => 'suivi_commandes',
         'description' => 'Statut d\'une commande de la cliente, ou ses dernières commandes si aucun numéro n\'est donné.',
         'input_schema' => [
@@ -220,6 +229,7 @@ class BotAiTools
         ),
         'verifier_paiement' => $this->bot->verifyPayment($this->order((string) ($input['order_number'] ?? ''), $phone)),
         'lien_paiement_carte' => $this->cardLink((string) ($input['order_number'] ?? ''), $phone, $input['currency'] ?? null),
+        'payer_en_boutique' => $this->inStore((string) ($input['order_number'] ?? ''), $phone),
         'suivi_commandes' => !empty($input['order_number'])
           ? ['commande' => $this->bot->orderPayload($this->order((string) $input['order_number'], $phone))]
           : ['commandes' => $this->bot->ordersForPhone($phone)],
@@ -309,6 +319,24 @@ class BotAiTools
         'card' => 'Appelle lien_paiement_carte et envoie le lien.',
         default => 'Demande quel numéro débiter (ce numéro WhatsApp ou un autre), puis payer_mobile_money.',
       },
+    ];
+  }
+
+  /**
+   * Bascule une commande existante en paiement en boutique au retrait.
+   *
+   * @param string $orderNumber Numéro de commande
+   * @param string $phone Numéro de la conversation
+   * @return array<string, mixed> Commande réservée et consigne
+   */
+  private function inStore(string $orderNumber, string $phone): array
+  {
+    $order = $this->bot->switchToInStorePayment($this->order($orderNumber, $phone));
+
+    return [
+      'commande' => $this->bot->orderPayload($order),
+      'boutique' => $this->bot->shopInfo()['pickup'],
+      'consigne' => 'Commande réservée et équipe prévenue. Annonce le montant exact renvoyé (total), l\'adresse et les horaires de la boutique, le numéro de commande, et qu\'elle recevra un message ici dès que tout est prêt. N\'envoie plus de demande Mobile Money ni de lien carte.',
     ];
   }
 
